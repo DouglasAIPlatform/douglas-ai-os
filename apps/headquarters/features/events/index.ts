@@ -1,0 +1,1 @@
+export { corporateEventDefinitions } from "./registry";

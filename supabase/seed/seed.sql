@@ -1,0 +1,21 @@
+-- Douglas AI Platform — seed de referência (desabilitado)
+-- Sprint 5.20
+--
+-- Este arquivo NÃO insere dados reais automaticamente.
+-- operator_profiles exige auth.users existentes (criados via Supabase Auth).
+--
+-- Para seed local após auth configurado:
+-- 1. Crie usuários via Supabase Dashboard ou Auth API
+-- 2. Insira perfis vinculados ao user_id retornado
+--
+-- Exemplo (substituir UUIDs — NÃO usar em produção sem revisão):
+--
+-- INSERT INTO public.operator_profiles (user_id, display_name, role, status)
+-- VALUES (
+--   '00000000-0000-0000-0000-000000000001'::uuid,
+--   'Platform Owner (seed)',
+--   'owner',
+--   'active'
+-- );
+--
+-- Permissões de referência já são inseridas na migration 20250707130000_platform_helpers.sql

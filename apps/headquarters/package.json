@@ -1,0 +1,53 @@
+{
+  "name": "headquarters",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@douglas/agents": "workspace:*",
+    "@douglas/memory": "workspace:*",
+    "@douglas/ui": "workspace:*",
+    "@douglas/core": "workspace:*",
+    "@douglas/events": "workspace:*",
+    "@douglas/notifications": "workspace:*",
+    "@douglas/analytics": "workspace:*",
+    "@douglas/plugins": "workspace:*",
+    "@douglas/dos": "workspace:*",
+    "@douglas/departments": "workspace:*",
+    "@douglas/missions": "workspace:*",
+    "@douglas/bootstrap": "workspace:*",
+    "@douglas/runtime": "workspace:*",
+    "@douglas/health": "workspace:*",
+    "@douglas/graph": "workspace:*",
+    "@douglas/monitor": "workspace:*",
+    "@douglas/platform-state": "workspace:*",
+    "@douglas/diagnostics": "workspace:*",
+    "@douglas/command-center": "workspace:*",
+    "@douglas/security": "workspace:*",
+    "@douglas/audit": "workspace:*",
+    "@douglas/demo-data": "workspace:*",
+    "@douglas/supabase": "workspace:*",
+    "@douglas/automation": "workspace:*",
+    "@douglas/workflow": "workspace:*",
+    "@supabase/supabase-js": "^2.49.8",
+    "next": "16.2.10",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

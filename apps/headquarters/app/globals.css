@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@import "@douglas/ui/styles.css";
+@source "../../../packages/ui/src/**/*.{ts,tsx}";
+
+body {
+  background-color: var(--ds-color-canvas);
+  color: var(--ds-color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

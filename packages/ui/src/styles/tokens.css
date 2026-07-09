@@ -1,0 +1,241 @@
+@theme inline {
+  --font-sans: var(--ds-font-family-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --ds-font-family-sans: var(--font-inter);
+  --ds-font-size-2xs: 0.6875rem;
+  --ds-font-size-xs: 0.75rem;
+  --ds-font-size-sm: 0.875rem;
+  --ds-font-size-md: 1rem;
+  --ds-font-size-lg: 1.125rem;
+  --ds-font-size-xl: 1.25rem;
+  --ds-font-size-2xl: 1.5rem;
+  --ds-font-size-3xl: 1.875rem;
+  --ds-font-size-4xl: 2.25rem;
+
+  --ds-line-height-tight: 1.15;
+  --ds-line-height-heading: 1.2;
+  --ds-line-height-body: 1.6;
+
+  --ds-font-weight-regular: 400;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-semibold: 600;
+  --ds-font-weight-bold: 700;
+
+  --ds-letter-spacing-tight: -0.03em;
+  --ds-letter-spacing-normal: 0;
+  --ds-letter-spacing-wide: 0.025em;
+  --ds-letter-spacing-label: 0.16em;
+  --ds-letter-spacing-brand: 0.2em;
+
+  --ds-space-0: 0;
+  --ds-space-0-5: 0.125rem;
+  --ds-space-1: 0.25rem;
+  --ds-space-1-5: 0.375rem;
+  --ds-space-2: 0.5rem;
+  --ds-space-2-5: 0.625rem;
+  --ds-space-3: 0.75rem;
+  --ds-space-3-5: 0.875rem;
+  --ds-space-4: 1rem;
+  --ds-space-5: 1.25rem;
+  --ds-space-6: 1.5rem;
+  --ds-space-8: 2rem;
+  --ds-space-10: 2.5rem;
+  --ds-space-12: 3rem;
+  --ds-space-16: 4rem;
+
+  --ds-grid-max-width: 72rem;
+  --ds-grid-gutter-sm: var(--ds-space-4);
+  --ds-grid-gutter-md: var(--ds-space-6);
+  --ds-grid-gutter-lg: var(--ds-space-8);
+  --ds-sidebar-width-collapsed: 5rem;
+  --ds-sidebar-width-expanded: 18rem;
+
+  --ds-radius-xs: 0.375rem;
+  --ds-radius-sm: 0.5rem;
+  --ds-radius-md: 0.75rem;
+  --ds-radius-lg: 1rem;
+  --ds-radius-xl: 1.25rem;
+  --ds-radius-2xl: 1.5rem;
+  --ds-radius-panel: 1.75rem;
+  --ds-radius-full: 999px;
+
+  --ds-color-canvas: #f6f6f7;
+  --ds-color-canvas-subtle: #fafafa;
+  --ds-color-surface: #ffffff;
+  --ds-color-surface-muted: #fafafa;
+  --ds-color-surface-glass: rgb(255 255 255 / 0.76);
+  --ds-color-surface-inverse: #09090b;
+  --ds-color-overlay: rgb(9 9 11 / 0.3);
+
+  --ds-color-text-primary: #111113;
+  --ds-color-text-secondary: #3f3f46;
+  --ds-color-text-muted: #71717a;
+  --ds-color-text-subtle: #a1a1aa;
+  --ds-color-text-inverse: #ffffff;
+
+  --ds-color-border-subtle: rgb(9 9 11 / 0.06);
+  --ds-color-border-default: rgb(9 9 11 / 0.08);
+  --ds-color-border-strong: rgb(9 9 11 / 0.12);
+  --ds-color-border-inverse: rgb(255 255 255 / 0.1);
+
+  --ds-color-brand-primary: #18181b;
+  --ds-color-brand-primary-hover: #27272a;
+  --ds-color-brand-accent: #6d5dfc;
+  --ds-color-brand-accent-soft: rgb(109 93 252 / 0.12);
+
+  --ds-color-success: #10b981;
+  --ds-color-success-soft: rgb(16 185 129 / 0.1);
+  --ds-color-warning: #f59e0b;
+  --ds-color-warning-soft: rgb(245 158 11 / 0.1);
+  --ds-color-danger: #dc2626;
+  --ds-color-danger-soft: rgb(220 38 38 / 0.08);
+  --ds-color-info: #0284c7;
+  --ds-color-info-soft: rgb(2 132 199 / 0.1);
+
+  --ds-elevation-xs: 0 1px 2px rgb(0 0 0 / 0.04);
+  --ds-elevation-sm: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.04);
+  --ds-elevation-md: 0 2px 4px rgb(0 0 0 / 0.04), 0 12px 32px rgb(0 0 0 / 0.07);
+  --ds-elevation-lg: 0 16px 48px rgb(0 0 0 / 0.14);
+  --ds-elevation-featured: 0 8px 32px rgb(0 0 0 / 0.24);
+  --ds-elevation-ring-inset: 1px 0 0 rgb(255 255 255 / 0.7) inset;
+
+  --ds-shadow-focus: 0 0 0 2px rgb(255 255 255), 0 0 0 4px rgb(113 113 122 / 0.45);
+  --ds-shadow-status-success: 0 0 8px rgb(16 185 129 / 0.55);
+  --ds-shadow-status-warning: 0 0 8px rgb(245 158 11 / 0.45);
+
+  --ds-duration-fast: 120ms;
+  --ds-duration-normal: 200ms;
+  --ds-duration-slow: 300ms;
+  --ds-duration-loading: 2400ms;
+  --ds-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ds-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --ds-state-hover-transform: -0.125rem;
+  --ds-state-disabled-opacity: 0.5;
+  --ds-state-loading-opacity: 0.55;
+  --ds-state-overlay-hover: rgb(9 9 11 / 0.04);
+  --ds-state-overlay-selected: rgb(9 9 11 / 0.95);
+
+  --ds-gradient-brand: linear-gradient(135deg, #18181b 0%, #3f3f46 100%);
+  --ds-gradient-brand-inverse: linear-gradient(135deg, #ffffff 0%, #d4d4d8 100%);
+  --ds-gradient-focus: linear-gradient(90deg, #18181b 0%, #52525b 50%, #18181b 100%);
+  --ds-gradient-violet: linear-gradient(135deg, #8b5cf6 0%, #4f46e5 100%);
+  --ds-gradient-sky: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+  --ds-gradient-emerald: linear-gradient(135deg, #10b981 0%, #0d9488 100%);
+  --ds-gradient-amber: linear-gradient(135deg, #f97316 0%, #d97706 100%);
+  --ds-gradient-rose: linear-gradient(135deg, #f43f5e 0%, #db2777 100%);
+  --ds-gradient-fuchsia: linear-gradient(135deg, #d946ef 0%, #9333ea 100%);
+  --ds-gradient-cyan: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
+  --ds-gradient-neutral: linear-gradient(135deg, #52525b 0%, #27272a 100%);
+
+  --ds-background-grid: radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.035) 1px, transparent 0);
+  --ds-background-grid-size: 24px 24px;
+  --ds-background-orb-violet: rgb(196 181 253 / 0.3);
+  --ds-background-orb-sky: rgb(186 230 253 / 0.25);
+  --ds-background-orb-emerald: rgb(209 250 229 / 0.3);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ds-color-canvas: #09090b;
+  --ds-color-canvas-subtle: #0f0f12;
+  --ds-color-surface: #111113;
+  --ds-color-surface-muted: #18181b;
+  --ds-color-surface-glass: rgb(9 9 11 / 0.78);
+  --ds-color-surface-inverse: #ffffff;
+  --ds-color-overlay: rgb(0 0 0 / 0.48);
+
+  --ds-color-text-primary: #f4f4f5;
+  --ds-color-text-secondary: #d4d4d8;
+  --ds-color-text-muted: #a1a1aa;
+  --ds-color-text-subtle: #71717a;
+  --ds-color-text-inverse: #09090b;
+
+  --ds-color-border-subtle: rgb(255 255 255 / 0.08);
+  --ds-color-border-default: rgb(255 255 255 / 0.1);
+  --ds-color-border-strong: rgb(255 255 255 / 0.16);
+  --ds-color-border-inverse: rgb(9 9 11 / 0.1);
+
+  --ds-color-brand-primary: #ffffff;
+  --ds-color-brand-primary-hover: #e4e4e7;
+  --ds-color-brand-accent-soft: rgb(139 92 246 / 0.18);
+
+  --ds-elevation-xs: 0 1px 2px rgb(0 0 0 / 0.24);
+  --ds-elevation-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.22);
+  --ds-elevation-md: 0 2px 4px rgb(0 0 0 / 0.32), 0 12px 32px rgb(0 0 0 / 0.28);
+  --ds-elevation-lg: 0 16px 48px rgb(0 0 0 / 0.42);
+  --ds-elevation-ring-inset: 1px 0 0 rgb(255 255 255 / 0.08) inset;
+
+  --ds-shadow-focus: 0 0 0 2px rgb(9 9 11), 0 0 0 4px rgb(161 161 170 / 0.55);
+  --ds-state-overlay-hover: rgb(255 255 255 / 0.06);
+  --ds-state-overlay-selected: rgb(255 255 255 / 0.95);
+
+  --ds-background-grid: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.045) 1px, transparent 0);
+  --ds-background-orb-violet: rgb(91 33 182 / 0.22);
+  --ds-background-orb-sky: rgb(7 89 133 / 0.18);
+  --ds-background-orb-emerald: rgb(6 95 70 / 0.16);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --ds-color-canvas: #09090b;
+    --ds-color-canvas-subtle: #0f0f12;
+    --ds-color-surface: #111113;
+    --ds-color-surface-muted: #18181b;
+    --ds-color-surface-glass: rgb(9 9 11 / 0.78);
+    --ds-color-surface-inverse: #ffffff;
+    --ds-color-overlay: rgb(0 0 0 / 0.48);
+
+    --ds-color-text-primary: #f4f4f5;
+    --ds-color-text-secondary: #d4d4d8;
+    --ds-color-text-muted: #a1a1aa;
+    --ds-color-text-subtle: #71717a;
+    --ds-color-text-inverse: #09090b;
+
+    --ds-color-border-subtle: rgb(255 255 255 / 0.08);
+    --ds-color-border-default: rgb(255 255 255 / 0.1);
+    --ds-color-border-strong: rgb(255 255 255 / 0.16);
+    --ds-color-border-inverse: rgb(9 9 11 / 0.1);
+
+    --ds-color-brand-primary: #ffffff;
+    --ds-color-brand-primary-hover: #e4e4e7;
+    --ds-color-brand-accent-soft: rgb(139 92 246 / 0.18);
+
+    --ds-elevation-xs: 0 1px 2px rgb(0 0 0 / 0.24);
+    --ds-elevation-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.22);
+    --ds-elevation-md: 0 2px 4px rgb(0 0 0 / 0.32), 0 12px 32px rgb(0 0 0 / 0.28);
+    --ds-elevation-lg: 0 16px 48px rgb(0 0 0 / 0.42);
+    --ds-elevation-ring-inset: 1px 0 0 rgb(255 255 255 / 0.08) inset;
+
+    --ds-shadow-focus: 0 0 0 2px rgb(9 9 11), 0 0 0 4px rgb(161 161 170 / 0.55);
+    --ds-state-overlay-hover: rgb(255 255 255 / 0.06);
+    --ds-state-overlay-selected: rgb(255 255 255 / 0.95);
+
+    --ds-background-grid: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.045) 1px, transparent 0);
+    --ds-background-orb-violet: rgb(91 33 182 / 0.22);
+    --ds-background-orb-sky: rgb(7 89 133 / 0.18);
+    --ds-background-orb-emerald: rgb(6 95 70 / 0.16);
+  }
+}
+
+@keyframes ds-pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: var(--ds-state-loading-opacity);
+  }
+}
+
+.ds-animate-pulse-soft {
+  animation: ds-pulse-soft var(--ds-duration-loading) var(--ds-ease-standard) infinite;
+}

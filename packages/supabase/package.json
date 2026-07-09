@@ -1,0 +1,21 @@
+{
+  "name": "@douglas/supabase",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2",
+    "react": "^19"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.49.8",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}

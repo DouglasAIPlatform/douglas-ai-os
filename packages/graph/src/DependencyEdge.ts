@@ -1,0 +1,1 @@
+export { DependencyEdgeRegistry } from "./DependencyNode";

@@ -1,0 +1,17 @@
+{
+  "name": "douglas-ai-os",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "lint": "turbo lint",
+    "validate": "turbo run typecheck lint build",
+    "start": "turbo start",
+    "supabase:migration-plan": "node --experimental-strip-types scripts/print-supabase-migration-plan.ts"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4"
+  }
+}

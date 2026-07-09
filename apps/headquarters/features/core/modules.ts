@@ -1,0 +1,126 @@
+import {
+  CORE_MODULE_IDS,
+  type CoreModuleDefinition,
+} from "@douglas/core";
+
+function createModule(
+  id: CoreModuleDefinition["id"],
+  name: string,
+  description: string,
+  packageName: string | undefined,
+  dependencies: CoreModuleDefinition["dependencies"],
+  publishes: string[],
+  subscribes: string[],
+): CoreModuleDefinition {
+  return {
+    id,
+    name,
+    description,
+    version: "0.1.0",
+    packageName,
+    status: "registered",
+    dependencies,
+    events: { publishes, subscribes },
+  };
+}
+
+export const coreModuleDefinitions: CoreModuleDefinition[] = [
+  createModule(
+    CORE_MODULE_IDS.AUTHENTICATION,
+    "Authentication",
+    "Autenticação e sessões da plataforma.",
+    undefined,
+    [],
+    ["auth:session:created", "auth:session:expired"],
+    ["core:platform:ready"],
+  ),
+  createModule(
+    CORE_MODULE_IDS.MEMORY,
+    "Memory",
+    "Memory Engine oficial da plataforma.",
+    "@douglas/memory",
+    [CORE_MODULE_IDS.AUTHENTICATION],
+    ["memory:written", "memory:searched"],
+    ["brain:context:updated", "agent:memory:requested"],
+  ),
+  createModule(
+    CORE_MODULE_IDS.AGENTS,
+    "Agents",
+    "Framework oficial de agentes.",
+    "@douglas/agents",
+    [CORE_MODULE_IDS.MEMORY, CORE_MODULE_IDS.AUTHENTICATION],
+    ["agent:activated", "agent:deactivated", "agent:task:assigned"],
+    ["workflow:task:completed", "automation:triggered"],
+  ),
+  createModule(
+    CORE_MODULE_IDS.WORKFLOW,
+    "Workflow",
+    "Workflow Engine departamental.",
+    "@douglas/workflow",
+    [CORE_MODULE_IDS.AGENTS],
+    ["workflow:started", "workflow:completed", "workflow:task:completed"],
+    ["automation:triggered", "agent:task:assigned"],
+  ),
+  createModule(
+    CORE_MODULE_IDS.AUTOMATION,
+    "Automation",
+    "Infraestrutura oficial de automações.",
+    "@douglas/automation",
+    [CORE_MODULE_IDS.WORKFLOW, CORE_MODULE_IDS.AGENTS],
+    ["automation:triggered", "automation:completed"],
+    ["core:platform:ready", "workflow:completed"],
+  ),
+  createModule(
+    CORE_MODULE_IDS.BRAIN,
+    "Brain",
+    "Núcleo cognitivo da plataforma.",
+    undefined,
+    [
+      CORE_MODULE_IDS.MEMORY,
+      CORE_MODULE_IDS.AGENTS,
+      CORE_MODULE_IDS.WORKFLOW,
+    ],
+    ["brain:context:updated", "brain:decision:made"],
+    ["memory:written", "search:query:executed"],
+  ),
+  createModule(
+    CORE_MODULE_IDS.SEARCH,
+    "Search",
+    "Search Engine interno.",
+    undefined,
+    [CORE_MODULE_IDS.BRAIN],
+    ["search:query:executed", "search:result:selected"],
+    ["core:platform:ready"],
+  ),
+  createModule(
+    CORE_MODULE_IDS.NOTIFICATIONS,
+    "Notifications",
+    "Sistema de notificações da plataforma.",
+    undefined,
+    [CORE_MODULE_IDS.AUTHENTICATION],
+    ["notification:sent", "notification:read"],
+    [
+      "automation:completed",
+      "workflow:completed",
+      "agent:task:assigned",
+    ],
+  ),
+  createModule(
+    CORE_MODULE_IDS.ANALYTICS,
+    "Analytics",
+    "Métricas e observabilidade da plataforma.",
+    undefined,
+    [
+      CORE_MODULE_IDS.SEARCH,
+      CORE_MODULE_IDS.WORKFLOW,
+      CORE_MODULE_IDS.AUTOMATION,
+    ],
+    ["analytics:event:recorded"],
+    [
+      "core:health:check",
+      "search:query:executed",
+      "workflow:completed",
+      "automation:completed",
+    ],
+  ),
+];
