@@ -25,7 +25,7 @@ export const auditLocalStorageConfig: AuditPersistenceConfig = {
 export const auditSupabaseConfig: SupabaseAuditPersistenceConfig = {
   ...DEFAULT_SUPABASE_AUDIT_PERSISTENCE_CONFIG,
   enabled: true,
-  // writeMode: "edge_function" — ativar após deploy de supabase/functions/audit-ingest
+  writeMode: "edge_function",
 };
 
 /** Modo solicitado — efetivo depende de Supabase configurado. */
