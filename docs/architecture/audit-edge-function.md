@@ -1,7 +1,7 @@
 # Audit Edge Function — Douglas AI Platform
 
-> Status: Production hardening v1.2  
-> Sprints: 5.24 (foundation) + 5.27 (hardening) + 5.33 (production)  
+> Status: Production hardening v1.3  
+> Sprints: 5.24 (foundation) + 5.27 (hardening) + 5.33 (production) + **5.35 (role authorization)**  
 > Escopo: função `audit-ingest` — deploy manual; **service_role somente no runtime Deno**.
 
 ## Problema
@@ -38,13 +38,18 @@ Browser (anon key + JWT opcional)
 | `auditId` / `requestId` / `correlationId` | Preservados em sucesso **e** rejeição de payload |
 | `errorCode` | Código estável snake_case (Sprint 5.33) |
 
-### Códigos de erro (Sprint 5.33)
+### Códigos de erro (Sprint 5.33 + 5.35)
 
 | `errorCode` | HTTP | Significado |
 |-------------|------|-------------|
 | `method_not_allowed` | 405 | Apenas POST (+ OPTIONS preflight) |
 | `cors_rejected` | 403 | Origin fora da allowlist |
-| `missing_auth` | 401 | JWT obrigatório ausente/inválido |
+| `missing_auth` | 401 | JWT obrigatório ausente |
+| `invalid_token` | 401 | JWT inválido ou expirado |
+| `profile_not_found` | 403 | Sem `operator_profiles` para a sessão |
+| `profile_inactive` | 403 | Profile com status ≠ `active` |
+| `role_not_allowed` | 403 | Role bloqueada (ex.: `viewer`) |
+| `actor_resolution_failed` | 500 | Falha interna na resolução de ator |
 | `invalid_payload` | 400 | JSON/payload/campos/metadata inválidos |
 | `insert_failed` | 500 | Falha Postgres (detail não exposto ao client) |
 | `internal_error` | 500 | Configuração server-side incompleta |
@@ -92,10 +97,11 @@ Alinhado com `validateAuditEntryForIngest()` em `@douglas/audit`.
 | `SUPABASE_SERVICE_ROLE_KEY` | Sim (auto) | — | INSERT bypass RLS — **somente Deno** |
 | `SUPABASE_ANON_KEY` | Sim se JWT ativo (auto) | — | Valida token via `auth.getUser()` |
 | `AUDIT_INGEST_CORS_ORIGIN` | Não | `*` | Allowlist CORS — origin único ou lista separada por vírgula |
-| `AUDIT_INGEST_REQUIRE_JWT` | Não | `false` | `"true"` exige `Authorization: Bearer` |
+| `AUDIT_INGEST_AUTH_MODE` | Não | `optional` | `disabled` \| `optional` \| `required` — ver [audit-edge-role-authorization.md](./audit-edge-role-authorization.md) |
+| `AUDIT_INGEST_REQUIRE_JWT` | Não | `false` | **Legado 5.33** — `"true"` equivale a `AUTH_MODE=required` |
 | `AUDIT_INGEST_MAX_METADATA_BYTES` | Não | `8192` | Limite de metadata serializado |
 
-**Nenhuma env nova é exigida para dev local** — defaults permitem `*` CORS e JWT desligado.
+**Nenhuma env nova é exigida para dev local** — default `optional` + CORS `*` permitem desenvolvimento sem login.
 
 ## CORS restrito (staging/prod)
 
@@ -111,25 +117,33 @@ supabase secrets set AUDIT_INGEST_CORS_ORIGIN=https://staging.example.com,http:/
 - Lista explícita: rejeita com `cors_rejected` (403)
 - Invoke sem header `Origin` (Supabase client): permitido — não é browser cross-origin
 
-## JWT obrigatório
+## Autenticação e autorização (Sprint 5.35)
+
+Modo recomendado staging/produção:
 
 ```bash
-supabase secrets set AUDIT_INGEST_REQUIRE_JWT=true
+supabase secrets set AUDIT_INGEST_AUTH_MODE=required
 supabase functions deploy audit-ingest
 ```
 
-Comportamento Sprint 5.33:
+Fluxo quando autenticado:
 
-1. Verifica presença de `Authorization: Bearer <token>`
-2. Valida token via `supabase.auth.getUser(token)` com anon key server-side
-3. Rejeita com `missing_auth` (401) se ausente ou inválido
+1. `Authorization: Bearer <token>` → `auth.getUser()`
+2. Lookup `operator_profiles` por `user_id`
+3. Exige `status = active` e role ∈ `{ owner, admin, operator }`
+4. Sobrescreve `actor_id`, `actor_name`, `actor_role` server-side
 
-### Limites documentados (fora do escopo desta sprint)
+Documentação completa: [audit-edge-role-authorization.md](./audit-edge-role-authorization.md)
 
-- Não valida claims customizados, roles ou vínculo `actor` ↔ `auth.uid()`
-- Não implementa rate limiting
-- Não verifica idempotência de `audit_id`
-- Produção futura: cruzar `actor_id` com usuário autenticado + RLS complementar
+### Legado JWT (5.33)
+
+`AUDIT_INGEST_REQUIRE_JWT=true` ainda funciona — mapeia para `required`.
+
+### Limites fora do escopo
+
+- Escopo granular para `viewer`
+- Rate limiting
+- Idempotência de `audit_id`
 
 ## Modos do adapter
 
@@ -147,15 +161,15 @@ Falha remota → localStorage + pending queue (Sprints 5.30/5.32).
 3. Secrets:
    ```bash
    supabase secrets set AUDIT_INGEST_CORS_ORIGIN=http://localhost:3000
-   # opcional staging:
-   # supabase secrets set AUDIT_INGEST_REQUIRE_JWT=true
+   # staging/produção:
+   # supabase secrets set AUDIT_INGEST_AUTH_MODE=required
    ```
 4. HQ: `writeMode: "edge_function"` em `features/platform-audit/config.ts`
 5. Login Supabase → gerar evento audit → `AuditTrailWidget`:
    - Último status remoto: `accepted`
    - Fallback local: inativo (se sync OK)
 6. Teste negativo CORS: origin não listado → `cors_rejected`
-7. Teste JWT (se ativo): logout → invoke → `missing_auth`, fallback local ativo
+7. Teste auth (modo required): logout → `missing_auth`; viewer → `role_not_allowed`
 
 ### curl (smoke test)
 
@@ -168,6 +182,7 @@ curl -X POST "$SUPABASE_URL/functions/v1/audit-ingest" \
 
 ## Referências
 
+- [audit-edge-role-authorization.md](./audit-edge-role-authorization.md)
 - [audit-migration-supabase.md](./audit-migration-supabase.md)
 - [audit-pending-queue-retry.md](./audit-pending-queue-retry.md)
 - [supabase-schema-rls.md](./supabase-schema-rls.md)

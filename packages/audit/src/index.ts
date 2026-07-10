@@ -155,6 +155,34 @@ export {
 } from "./AuditIngestResponse";
 export { invokeAuditIngestEdgeFunction, type InvokeAuditIngestOptions } from "./SupabaseAuditEdgeInvoke";
 export type { SupabaseAuditAppendResult, SupabaseTableProbeResult } from "./SupabaseAuditResults";
+export type { AuditIngestOutcome } from "./AuditIngestOutcome";
+export { AUDIT_INGEST_OUTCOME_LABELS } from "./AuditIngestOutcome";
+export type { AuditIngestMetric } from "./AuditIngestMetric";
+export type { AuditIngestObservabilitySnapshot } from "./AuditIngestObservabilitySnapshot";
+export {
+  EMPTY_AUDIT_INGEST_OBSERVABILITY_SNAPSHOT,
+  computeAuditIngestFailureRate,
+  hasObservedAuditIngestAccepted,
+} from "./AuditIngestObservabilitySnapshot";
+export {
+  AuditIngestObservabilityStore,
+  createAuditIngestObservabilityStore,
+  getAuditIngestObservabilityStore,
+  resolveOverallIngestObservabilityStatus,
+} from "./AuditIngestObservabilityStore";
+export {
+  buildAuditIngestMetric,
+  metricToTelemetryPayload,
+  resolveIngestOutcomeFromAppendResult,
+} from "./AuditIngestTelemetry";
+export {
+  AUDIT_INGEST_TELEMETRY_TOPICS,
+  isAuditIngestTelemetryTopic,
+  outcomeToTelemetryTopic,
+  shouldExcludeTopicFromAuditMapping,
+  type AuditIngestTelemetryEventPayload,
+  type AuditIngestTelemetryTopic,
+} from "./AuditIngestTelemetryPolicy";
 export {
   createSupabaseAuditPersistenceAdapter,
   SupabaseAuditPersistenceAdapter,

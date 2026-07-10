@@ -1,11 +1,16 @@
 /** Status remoto padronizado da Edge Function audit-ingest. */
 export type AuditIngestResponseStatus = "accepted" | "rejected" | "error";
 
-/** Códigos estáveis Sprint 5.33 (snake_case). */
+/** Códigos estáveis Sprint 5.33 + 5.35 (snake_case). */
 export type AuditIngestErrorCode =
   | "method_not_allowed"
   | "cors_rejected"
   | "missing_auth"
+  | "invalid_token"
+  | "profile_not_found"
+  | "profile_inactive"
+  | "role_not_allowed"
+  | "actor_resolution_failed"
   | "invalid_payload"
   | "insert_failed"
   | "internal_error"
@@ -18,7 +23,7 @@ const LEGACY_ERROR_CODE_ALIASES: Record<string, AuditIngestErrorCode> = {
   INVALID_JSON: "invalid_payload",
   VALIDATION_FAILED: "invalid_payload",
   JWT_REQUIRED: "missing_auth",
-  JWT_INVALID: "missing_auth",
+  JWT_INVALID: "invalid_token",
   CONFIG_ERROR: "internal_error",
   INSERT_FAILED: "insert_failed",
   FUNCTION_ERROR: "function_error",
@@ -59,6 +64,11 @@ export function normalizeAuditIngestErrorCode(
     "method_not_allowed",
     "cors_rejected",
     "missing_auth",
+    "invalid_token",
+    "profile_not_found",
+    "profile_inactive",
+    "role_not_allowed",
+    "actor_resolution_failed",
     "invalid_payload",
     "insert_failed",
     "internal_error",
@@ -135,7 +145,12 @@ export const AUDIT_INGEST_RESPONSE_STATUS_LABELS: Record<AuditIngestResponseStat
 export const AUDIT_INGEST_ERROR_CODE_LABELS: Partial<Record<AuditIngestErrorCode, string>> = {
   method_not_allowed: "Método HTTP inválido",
   cors_rejected: "Origin não permitido (CORS)",
-  missing_auth: "Autenticação obrigatória ou inválida",
+  missing_auth: "Autenticação obrigatória ou ausente",
+  invalid_token: "Token inválido ou expirado",
+  profile_not_found: "Perfil operacional não encontrado",
+  profile_inactive: "Perfil operacional inativo",
+  role_not_allowed: "Role não autorizada para ingest remoto",
+  actor_resolution_failed: "Falha ao resolver identidade do ator",
   invalid_payload: "Payload inválido",
   insert_failed: "Falha ao persistir remotamente",
   internal_error: "Erro interno da função",

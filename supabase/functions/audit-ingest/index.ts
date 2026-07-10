@@ -1,6 +1,6 @@
 /**
  * Douglas AI Platform — audit-ingest Edge Function
- * Sprint 5.27 (foundation) + 5.33 (production hardening)
+ * Sprint 5.27 (foundation) + 5.33 (hardening) + 5.35 (role authorization)
  *
  * Alinhado com:
  * - packages/audit/src/AuditIngestPayload.ts
@@ -10,6 +10,11 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import type { AuditActorResolution } from "./AuditActorResolution.ts";
+import type { AuditAuthErrorCode } from "./AuditAuthorizationResult.ts";
+import { authorizeAuditIngest } from "./authorizeAuditIngest.ts";
+import { resolveAuditIngestAuthMode } from "./AuditAuthMode.ts";
+import { emitAuditIngestStructuredLog } from "./auditIngestStructuredLog.ts";
 
 const TABLE_NAME = "operational_audit_entries";
 const DEFAULT_MAX_METADATA_BYTES = 8192;
@@ -52,11 +57,16 @@ const OPTIONAL_METADATA_STRING_KEYS = [
 
 type IngestStatus = "accepted" | "rejected" | "error";
 
-/** Códigos estáveis Sprint 5.33 (snake_case). */
+/** Códigos estáveis — Sprint 5.33 + 5.35 */
 type IngestErrorCode =
   | "method_not_allowed"
   | "cors_rejected"
   | "missing_auth"
+  | "invalid_token"
+  | "profile_not_found"
+  | "profile_inactive"
+  | "role_not_allowed"
+  | "actor_resolution_failed"
   | "invalid_payload"
   | "insert_failed"
   | "internal_error";
@@ -113,7 +123,6 @@ function isOriginAllowed(req: Request): boolean {
 
   const origin = req.headers.get("Origin");
   if (!origin) {
-    // Invoke server-side / Supabase client sem header Origin
     return true;
   }
 
@@ -297,14 +306,24 @@ function validatePayload(body: unknown):
   };
 }
 
-function mapToRow(entry: AuditIngestPayload) {
+function mapToRow(
+  entry: AuditIngestPayload,
+  actor: AuditActorResolution,
+  actorSource: "server_profile" | "payload",
+) {
+  const metadata = {
+    ...entry.metadata,
+    operatorId: actor.actorId,
+    ...(actorSource === "server_profile"
+      ? { operatorRoleSource: "server_profile" as const }
+      : {}),
+  };
+
   return {
     timestamp: entry.timestamp,
-    actor_id:
-      (typeof entry.metadata.operatorId === "string" ? entry.metadata.operatorId : null) ??
-      entry.actor,
-    actor_name: entry.actor,
-    actor_role: entry.role,
+    actor_id: actor.actorId,
+    actor_name: actor.actorName,
+    actor_role: actor.actorRole,
     source: entry.source,
     action: entry.action,
     target: entry.target,
@@ -313,77 +332,12 @@ function mapToRow(entry: AuditIngestPayload) {
     correlation_id: readCorrelationId(entry.metadata),
     request_id: readRequestId(entry.metadata),
     audit_id: readAuditId(entry.metadata, entry.id),
-    metadata: entry.metadata,
+    metadata,
   };
 }
 
-async function assertJwtWhenRequired(req: Request, supabaseUrl: string): Promise<Response | null> {
-  const requireJwt = Deno.env.get("AUDIT_INGEST_REQUIRE_JWT") === "true";
-  if (!requireJwt) {
-    return null;
-  }
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return jsonResponse(
-      req,
-      {
-        success: false,
-        status: "rejected",
-        message: "Autenticação obrigatória para audit-ingest",
-        errorCode: "missing_auth",
-      },
-      401,
-    );
-  }
-
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  if (!anonKey) {
-    return jsonResponse(
-      req,
-      {
-        success: false,
-        status: "error",
-        message: "Função indisponível — configuração incompleta",
-        errorCode: "internal_error",
-      },
-      500,
-    );
-  }
-
-  const token = authHeader.slice("Bearer ".length).trim();
-  if (!token) {
-    return jsonResponse(
-      req,
-      {
-        success: false,
-        status: "rejected",
-        message: "Autenticação obrigatória para audit-ingest",
-        errorCode: "missing_auth",
-      },
-      401,
-    );
-  }
-
-  const userClient = createClient(supabaseUrl, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  const { data, error } = await userClient.auth.getUser(token);
-  if (error || !data.user) {
-    return jsonResponse(
-      req,
-      {
-        success: false,
-        status: "rejected",
-        message: "Token de autenticação inválido ou expirado",
-        errorCode: "missing_auth",
-      },
-      401,
-    );
-  }
-
-  return null;
+function toIngestErrorCode(code: AuditAuthErrorCode): IngestErrorCode {
+  return code;
 }
 
 Deno.serve(async (req) => {
@@ -417,10 +371,19 @@ Deno.serve(async (req) => {
     );
   }
 
+  const requestStartedAt = performance.now();
+  const authMode = resolveAuditIngestAuthMode();
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!supabaseUrl || !serviceRoleKey) {
+    emitAuditIngestStructuredLog({
+      status: "error",
+      latencyMs: Math.round(performance.now() - requestStartedAt),
+      authMode,
+      errorCode: "internal_error",
+    });
     return jsonResponse(
       req,
       {
@@ -433,15 +396,16 @@ Deno.serve(async (req) => {
     );
   }
 
-  const jwtResponse = await assertJwtWhenRequired(req, supabaseUrl);
-  if (jwtResponse) {
-    return jwtResponse;
-  }
-
   let body: unknown;
   try {
     body = await req.json();
   } catch {
+    emitAuditIngestStructuredLog({
+      status: "rejected",
+      latencyMs: Math.round(performance.now() - requestStartedAt),
+      authMode,
+      errorCode: "invalid_payload",
+    });
     return jsonResponse(
       req,
       {
@@ -457,6 +421,15 @@ Deno.serve(async (req) => {
   const correlationIds = extractCorrelationIds(body);
   const validation = validatePayload(body);
   if (!validation.valid) {
+    emitAuditIngestStructuredLog({
+      status: "rejected",
+      latencyMs: Math.round(performance.now() - requestStartedAt),
+      authMode,
+      auditId: correlationIds.auditId,
+      requestId: correlationIds.requestId,
+      correlationId: correlationIds.correlationId,
+      errorCode: "invalid_payload",
+    });
     return jsonResponse(
       req,
       {
@@ -477,11 +450,59 @@ Deno.serve(async (req) => {
   });
 
   const payload = validation.payload;
-  const row = mapToRow(payload);
+
+  const authorization = await authorizeAuditIngest({
+    req,
+    supabaseUrl,
+    adminClient,
+    payload,
+  });
+
+  if (authorization.kind === "failure") {
+    emitAuditIngestStructuredLog({
+      status: "rejected",
+      latencyMs: Math.round(performance.now() - requestStartedAt),
+      authMode,
+      auditId: payload.id,
+      requestId: readRequestId(payload.metadata) ?? undefined,
+      correlationId: readCorrelationId(payload.metadata) ?? undefined,
+      errorCode: toIngestErrorCode(authorization.errorCode),
+    });
+    return jsonResponse(
+      req,
+      {
+        success: false,
+        status: "rejected",
+        message: authorization.message,
+        auditId: payload.id,
+        requestId: readRequestId(payload.metadata) ?? undefined,
+        correlationId: readCorrelationId(payload.metadata) ?? undefined,
+        errorCode: toIngestErrorCode(authorization.errorCode),
+      },
+      authorization.httpStatus,
+    );
+  }
+
+  const row = mapToRow(
+    payload,
+    authorization.actor,
+    authorization.kind === "authenticated" ? "server_profile" : "payload",
+  );
   const { error } = await adminClient.from(TABLE_NAME).insert(row);
 
   if (error) {
     console.error("audit-ingest insert_failed", error.code ?? "unknown");
+    emitAuditIngestStructuredLog({
+      status: "error",
+      latencyMs: Math.round(performance.now() - requestStartedAt),
+      authMode,
+      auditId: payload.id,
+      requestId: readRequestId(payload.metadata) ?? undefined,
+      correlationId: readCorrelationId(payload.metadata) ?? undefined,
+      errorCode: "insert_failed",
+      authorizedRole:
+        authorization.kind === "authenticated" ? authorization.operator.role : undefined,
+    });
     return jsonResponse(
       req,
       {
@@ -496,6 +517,17 @@ Deno.serve(async (req) => {
       500,
     );
   }
+
+  emitAuditIngestStructuredLog({
+    status: "accepted",
+    latencyMs: Math.round(performance.now() - requestStartedAt),
+    authMode,
+    auditId: payload.id,
+    requestId: readRequestId(payload.metadata) ?? undefined,
+    correlationId: readCorrelationId(payload.metadata) ?? undefined,
+    authorizedRole:
+      authorization.kind === "authenticated" ? authorization.operator.role : undefined,
+  });
 
   return jsonResponse(req, {
     success: true,

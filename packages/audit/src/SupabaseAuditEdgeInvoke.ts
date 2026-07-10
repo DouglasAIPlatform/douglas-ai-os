@@ -53,6 +53,10 @@ function buildFailureResult(
     edgeFunctionNotDeployed?: boolean;
     errorCode?: AuditIngestErrorCode;
     remoteStatus?: SupabaseAuditAppendResult["remoteStatus"];
+    latencyMs?: number;
+    auditId?: string;
+    requestId?: string;
+    correlationId?: string;
   } = {},
 ): SupabaseAuditAppendResult {
   return {
@@ -61,6 +65,10 @@ function buildFailureResult(
     edgeFunctionNotDeployed: options.edgeFunctionNotDeployed,
     errorCode: options.errorCode,
     remoteStatus: options.remoteStatus ?? "error",
+    latencyMs: options.latencyMs,
+    auditId: options.auditId,
+    requestId: options.requestId,
+    correlationId: options.correlationId,
   };
 }
 
@@ -74,9 +82,11 @@ export async function invokeAuditIngestEdgeFunction(
   const { client, functionName, payload } = options;
 
   try {
+    const startedAt = performance.now();
     const { data, error } = await client.functions.invoke(functionName, {
       body: payload,
     });
+    const latencyMs = Math.round(performance.now() - startedAt);
 
     if (error) {
       const message = readInvokeTransportError(error, data);
@@ -85,6 +95,7 @@ export async function invokeAuditIngestEdgeFunction(
         edgeFunctionNotDeployed: notDeployed,
         errorCode: notDeployed ? "function_not_deployed" : "function_error",
         remoteStatus: "error",
+        latencyMs,
       });
     }
 
@@ -93,6 +104,7 @@ export async function invokeAuditIngestEdgeFunction(
       return buildFailureResult("Resposta inválida da Edge Function audit-ingest", {
         errorCode: "function_error",
         remoteStatus: "error",
+        latencyMs,
       });
     }
 
@@ -106,6 +118,7 @@ export async function invokeAuditIngestEdgeFunction(
         correlationId: parsed.correlationId ?? readCorrelationId(payload.metadata),
         errorCode:
           normalizeAuditIngestErrorCode(parsed.errorCode) ?? "invalid_payload",
+        latencyMs,
       };
     }
 
@@ -115,6 +128,7 @@ export async function invokeAuditIngestEdgeFunction(
       auditId: parsed.auditId ?? payload.id,
       requestId: parsed.requestId ?? readRequestId(payload.metadata),
       correlationId: parsed.correlationId ?? readCorrelationId(payload.metadata),
+      latencyMs,
     };
   } catch (cause) {
     const message =

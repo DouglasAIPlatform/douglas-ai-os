@@ -8,6 +8,8 @@ import { probeSupabaseTableReadOnly } from "../staging-validation/probeSupabaseT
 import type { StagingValidationAuditSnapshot, StagingValidationEdgeSnapshot } from "../staging-validation/SupabaseStagingValidation";
 import {
   PRODUCTION_SAFETY_CHECK_LABELS,
+  PRODUCTION_SAFETY_INGEST_CRITICAL_FAILURE_RATE,
+  PRODUCTION_SAFETY_INGEST_MIN_ATTEMPTS,
   PRODUCTION_SAFETY_PENDING_QUEUE_LIMIT,
   type ProductionSafetyCheck,
   type ProductionSafetyCheckId,
@@ -38,6 +40,12 @@ export interface ProductionSafetyAuditSnapshot extends StagingValidationAuditSna
   pendingQueueTotal?: number;
   pendingQueueFailed?: number;
   pendingQueueError?: string | null;
+  ingestTotalAttempts?: number;
+  ingestAccepted?: number;
+  ingestRejected?: number;
+  ingestFailed?: number;
+  ingestLastErrorCode?: string | null;
+  ingestLastOutcome?: string | null;
 }
 
 export interface RunProductionSafetyGateInput {
@@ -78,6 +86,18 @@ function isCriticalAuditError(error: string | null | undefined): boolean {
     normalized.includes("jwt") ||
     normalized.includes("internal_error") ||
     normalized.includes("insert_failed")
+  );
+}
+
+function isCriticalIngestErrorCode(code: string | null | undefined): boolean {
+  if (!code) return false;
+  return (
+    code === "profile_not_found" ||
+    code === "role_not_allowed" ||
+    code === "insert_failed" ||
+    code === "internal_error" ||
+    code === "invalid_token" ||
+    code === "function_not_deployed"
   );
 }
 
@@ -179,6 +199,15 @@ export function buildProductionSafetyNextSteps(
         break;
       case "production_mock_role_locked":
         steps.push("Em produção, mockRoleChangeAllowed deve ser false (NODE_ENV=production).");
+        break;
+      case "audit_ingest_accepted_observed":
+        steps.push("Gere evento audit com sessão autenticada — docs/architecture/audit-ingest-observability.md.");
+        break;
+      case "audit_ingest_failure_rate":
+        steps.push("Investigue rejeições/falhas no Audit Ingest Observability widget.");
+        break;
+      case "audit_ingest_no_critical_errors":
+        steps.push("Corrija auth/profile/Edge Function antes de produção.");
         break;
       default:
         break;
@@ -651,6 +680,112 @@ export async function runProductionSafetyGate(
         auth.mockRoleChangeAllowed
           ? "Dev/staging — troca mock permitida (esperado)."
           : "Troca mock bloqueada neste ambiente.",
+      ),
+    );
+  }
+
+  // --- Observabilidade ingest (Sprint 5.36) — warnings only, amostra insuficiente não bloqueia ---
+  const ingestAttempts = audit.ingestTotalAttempts ?? 0;
+  const ingestAccepted = audit.ingestAccepted ?? 0;
+  const writeModeObs = audit.supabaseWriteMode ?? edge.writeMode;
+
+  if (writeModeObs !== "edge_function" || !audit.supabaseConfigured) {
+    checks.push(
+      check(
+        "audit_ingest_accepted_observed",
+        "skip",
+        "Aplicável com writeMode edge_function e Supabase configurado.",
+      ),
+    );
+    checks.push(
+      check(
+        "audit_ingest_failure_rate",
+        "skip",
+        "Métricas de sessão — requer ingest remoto ativo.",
+      ),
+    );
+    checks.push(
+      check(
+        "audit_ingest_no_critical_errors",
+        "skip",
+        "Sem telemetria de ingest nesta configuração.",
+      ),
+    );
+  } else if (ingestAttempts === 0) {
+    checks.push(
+      check(
+        "audit_ingest_accepted_observed",
+        "warn",
+        "Nenhuma tentativa de ingest na sessão — amostra insuficiente.",
+        { docPath: "docs/architecture/audit-ingest-observability.md" },
+      ),
+    );
+    checks.push(
+      check(
+        "audit_ingest_failure_rate",
+        "warn",
+        "Sem tentativas registradas — taxa indeterminada.",
+      ),
+    );
+    checks.push(
+      check(
+        "audit_ingest_no_critical_errors",
+        "pass",
+        "Nenhum erro de ingest na sessão atual.",
+      ),
+    );
+  } else {
+    checks.push(
+      check(
+        "audit_ingest_accepted_observed",
+        ingestAccepted > 0 ? "pass" : "warn",
+        ingestAccepted > 0
+          ? `${ingestAccepted} ingest accepted na sessão.`
+          : "Nenhum accepted observado na sessão — gere evento de teste.",
+        { docPath: "docs/architecture/audit-ingest-observability.md" },
+      ),
+    );
+
+    const failedPlusRejected = (audit.ingestRejected ?? 0) + (audit.ingestFailed ?? 0);
+    const failureRate =
+      ingestAttempts >= PRODUCTION_SAFETY_INGEST_MIN_ATTEMPTS
+        ? failedPlusRejected / ingestAttempts
+        : null;
+
+    if (failureRate === null) {
+      checks.push(
+        check(
+          "audit_ingest_failure_rate",
+          "warn",
+          `Amostra insuficiente (${ingestAttempts}/${PRODUCTION_SAFETY_INGEST_MIN_ATTEMPTS} tentativas).`,
+        ),
+      );
+    } else if (failureRate > PRODUCTION_SAFETY_INGEST_CRITICAL_FAILURE_RATE) {
+      checks.push(
+        check(
+          "audit_ingest_failure_rate",
+          "warn",
+          `Taxa de falha ${Math.round(failureRate * 100)}% na sessão (${failedPlusRejected}/${ingestAttempts}).`,
+        ),
+      );
+    } else {
+      checks.push(
+        check(
+          "audit_ingest_failure_rate",
+          "pass",
+          `Taxa de falha ${Math.round(failureRate * 100)}% (${failedPlusRejected}/${ingestAttempts}).`,
+        ),
+      );
+    }
+
+    const criticalIngest = isCriticalIngestErrorCode(audit.ingestLastErrorCode);
+    checks.push(
+      check(
+        "audit_ingest_no_critical_errors",
+        criticalIngest ? "warn" : "pass",
+        criticalIngest
+          ? `Último errorCode crítico: ${audit.ingestLastErrorCode}.`
+          : "Nenhum errorCode crítico recente na sessão.",
       ),
     );
   }

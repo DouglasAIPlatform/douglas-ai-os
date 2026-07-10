@@ -21,7 +21,7 @@ export function useProductionSafetyGate() {
   const { config, client, refreshHealthCheck } = useSupabase();
   const { authSession, bridge, operatorSource, mockRoleChangeAllowed } =
     useAuthOperatorBridge();
-  const { persistenceStatus } = useAudit();
+  const { persistenceStatus, ingestObservability } = useAudit();
   const [report, setReport] = useState<ProductionSafetyReport | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluationError, setEvaluationError] = useState<string | null>(null);
@@ -60,6 +60,12 @@ export function useProductionSafetyGate() {
           pendingQueueTotal: persistenceStatus.pendingQueueStats?.total,
           pendingQueueFailed: persistenceStatus.pendingQueueStats?.failed,
           pendingQueueError: persistenceStatus.pendingQueueError,
+          ingestTotalAttempts: ingestObservability.totalAttempts,
+          ingestAccepted: ingestObservability.accepted,
+          ingestRejected: ingestObservability.rejected,
+          ingestFailed: ingestObservability.failed,
+          ingestLastErrorCode: ingestObservability.lastErrorCode,
+          ingestLastOutcome: ingestObservability.lastOutcome,
         },
         edge: {
           edgeFunctionName:
@@ -88,6 +94,7 @@ export function useProductionSafetyGate() {
     mockRoleChangeAllowed,
     operatorSource,
     persistenceStatus,
+    ingestObservability,
     refreshHealthCheck,
   ]);
 

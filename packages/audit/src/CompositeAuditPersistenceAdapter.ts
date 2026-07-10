@@ -14,6 +14,9 @@ import {
   syncLegacyPersistenceStatusFields,
 } from "./AuditPersistenceStatus";
 import type { AuditSyncResult } from "./AuditSyncResult";
+import type { AuditIngestMetric } from "./AuditIngestMetric";
+import { buildAuditIngestMetric } from "./AuditIngestTelemetry";
+import type { AuditIngestObservabilityStore } from "./AuditIngestObservabilityStore";
 import { AuditSyncManager } from "./AuditSyncManager";
 import type { AuditPendingCleanupResult } from "./AuditPendingCleanupResult";
 import { AuditPendingQueueCleanup } from "./AuditPendingQueueCleanup";
@@ -38,6 +41,8 @@ export interface CompositeAuditPersistenceConfig {
   isSupabaseConfigured: boolean;
   localStorage?: Partial<AuditPersistenceConfig>;
   supabase?: Partial<SupabaseAuditPersistenceConfig>;
+  ingestObservability?: AuditIngestObservabilityStore;
+  onIngestMetric?: (metric: AuditIngestMetric) => void;
 }
 
 export interface AuditPersistenceAdapterWithStatus extends AuditPersistenceAdapter {
@@ -58,6 +63,8 @@ export class CompositeAuditPersistenceAdapter implements AuditPersistenceAdapter
   private readonly syncManager: AuditSyncManager;
   private readonly pendingQueueCleanup: AuditPendingQueueCleanup;
   private readonly isSupabaseConfigured: boolean;
+  private readonly ingestObservability: AuditIngestObservabilityStore | null;
+  private readonly onIngestMetric?: (metric: AuditIngestMetric) => void;
   private readonly statusListeners = new Set<() => void>();
   private fallbackUsed = false;
   private supabaseTableReady: boolean | null = null;
@@ -70,6 +77,8 @@ export class CompositeAuditPersistenceAdapter implements AuditPersistenceAdapter
     config: CompositeAuditPersistenceConfig,
   ) {
     this.isSupabaseConfigured = config.isSupabaseConfigured;
+    this.ingestObservability = config.ingestObservability ?? null;
+    this.onIngestMetric = config.onIngestMetric;
     this.effectiveMode = resolveEffectiveAuditPersistenceMode(
       config.mode,
       config.isSupabaseConfigured,
@@ -243,12 +252,34 @@ export class CompositeAuditPersistenceAdapter implements AuditPersistenceAdapter
     return result;
   }
 
+  private recordIngestObservability(
+    entry: AuditEntry,
+    result: Awaited<ReturnType<SupabaseAuditPersistenceAdapter["appendAsync"]>>,
+    usedFallback: boolean,
+  ): void {
+    if (!this.ingestObservability && !this.onIngestMetric) {
+      return;
+    }
+
+    const metric = buildAuditIngestMetric(result, {
+      usedFallback,
+      auditId: result.auditId ?? entry.id,
+      requestId: result.requestId,
+      correlationId: result.correlationId,
+      latencyMs: result.latencyMs,
+    });
+
+    this.ingestObservability?.record(metric);
+    this.onIngestMetric?.(metric);
+  }
+
   private async appendToSupabase(entry: AuditEntry): Promise<void> {
     if (!this.supabaseAdapter) return;
 
     const result = await this.supabaseAdapter.appendAsync(entry);
 
     if (result.success) {
+      this.recordIngestObservability(entry, result, false);
       this.lastSyncAt = new Date().toISOString();
       this.lastError = null;
       this.pendingQueue.remove(entry.id);
@@ -258,6 +289,7 @@ export class CompositeAuditPersistenceAdapter implements AuditPersistenceAdapter
 
     this.fallbackUsed = true;
     this.lastError = result.error ?? "Falha ao persistir audit no Supabase";
+    this.recordIngestObservability(entry, result, true);
 
     this.pendingQueue.enqueue(
       createAuditPendingEntry(entry, {

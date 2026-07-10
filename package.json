@@ -9,7 +9,8 @@
     "lint": "turbo lint",
     "validate": "turbo run typecheck lint build",
     "start": "turbo start",
-    "supabase:migration-plan": "node --experimental-strip-types scripts/print-supabase-migration-plan.ts"
+    "supabase:migration-plan": "node --experimental-strip-types scripts/print-supabase-migration-plan.ts",
+    "release:check": "node --experimental-strip-types scripts/release-readiness.ts"
   },
   "devDependencies": {
     "turbo": "^2.5.4"

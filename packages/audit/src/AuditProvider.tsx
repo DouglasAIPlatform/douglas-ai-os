@@ -3,9 +3,21 @@
 import { useEventBus } from "@douglas/events";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuditContext } from "./AuditContext";
 import { createAuditMapperState, isAuditedEventTopic, mapEventToAuditEntries } from "./AuditEventMapper";
+import type { AuditIngestMetric } from "./AuditIngestMetric";
+import {
+  type AuditIngestObservabilitySnapshot,
+} from "./AuditIngestObservabilitySnapshot";
+import {
+  AuditIngestObservabilityStore,
+  getAuditIngestObservabilityStore,
+} from "./AuditIngestObservabilityStore";
+import { metricToTelemetryPayload } from "./AuditIngestTelemetry";
+import {
+  outcomeToTelemetryTopic,
+} from "./AuditIngestTelemetryPolicy";
 import { AuditLog, createAuditLog, type AuditLogOptions } from "./AuditLog";
 import type { AuditPersistenceConfig } from "./AuditPersistenceConfig";
 import type { AuditPersistenceMode } from "./AuditPersistenceMode";
@@ -39,20 +51,30 @@ export interface AuditProviderProps {
 function createPersistenceAdapter(
   integration?: AuditPersistenceIntegrationConfig,
   legacyConfig?: Partial<AuditPersistenceConfig>,
+  options?: {
+    ingestObservability?: AuditIngestObservabilityStore;
+    onIngestMetric?: (metric: AuditIngestMetric) => void;
+  },
 ): CompositeAuditPersistenceAdapter {
   return createCompositeAuditPersistenceAdapter(integration?.supabaseClient ?? null, {
     mode: integration?.mode ?? "auto",
     isSupabaseConfigured: integration?.isSupabaseConfigured ?? false,
     localStorage: integration?.localStorage ?? legacyConfig,
     supabase: integration?.supabase,
+    ingestObservability: options?.ingestObservability,
+    onIngestMetric: options?.onIngestMetric,
   });
 }
 
 function createDefaultAuditLog(
   integration?: AuditPersistenceIntegrationConfig,
   legacyConfig?: Partial<AuditPersistenceConfig>,
+  options?: {
+    ingestObservability?: AuditIngestObservabilityStore;
+    onIngestMetric?: (metric: AuditIngestMetric) => void;
+  },
 ): { log: AuditLog; adapter: CompositeAuditPersistenceAdapter } {
-  const adapter = createPersistenceAdapter(integration, legacyConfig);
+  const adapter = createPersistenceAdapter(integration, legacyConfig, options);
   const maxEntries =
     integration?.localStorage?.maxEntries ??
     legacyConfig?.maxEntries ??
@@ -75,14 +97,33 @@ export function AuditProvider({
   persistenceConfig,
   persistenceIntegration,
 }: AuditProviderProps) {
-  const { subscribeAll } = useEventBus();
+  const { subscribeAll, publish } = useEventBus();
+  const ingestObservabilityStore = useMemo(() => getAuditIngestObservabilityStore(), []);
+  const [ingestObservability, setIngestObservability] =
+    useState<AuditIngestObservabilitySnapshot>(() => ingestObservabilityStore.getSnapshot());
+
+  const publishIngestMetricRef = useRef<(metric: AuditIngestMetric) => void>(() => {});
+  publishIngestMetricRef.current = (metric: AuditIngestMetric) => {
+    publish(outcomeToTelemetryTopic(metric.outcome), "audit", metricToTelemetryPayload(metric));
+  };
+
+  const onIngestMetric = useCallback((metric: AuditIngestMetric) => {
+    publishIngestMetricRef.current(metric);
+  }, []);
+
   const [{ log: defaultLog, adapter }] = useState(() =>
     externalAuditLog
       ? {
           log: externalAuditLog,
-          adapter: createPersistenceAdapter(persistenceIntegration, persistenceConfig),
+          adapter: createPersistenceAdapter(persistenceIntegration, persistenceConfig, {
+            ingestObservability: ingestObservabilityStore,
+            onIngestMetric,
+          }),
         }
-      : createDefaultAuditLog(persistenceIntegration, persistenceConfig),
+      : createDefaultAuditLog(persistenceIntegration, persistenceConfig, {
+          ingestObservability: ingestObservabilityStore,
+          onIngestMetric,
+        }),
   );
   const auditLog = externalAuditLog ?? defaultLog;
   const [version, setVersion] = useState(0);
@@ -91,6 +132,12 @@ export function AuditProvider({
   );
   const mapperStateRef = useRef(createAuditMapperState());
   const initializedRef = useRef(false);
+
+  useEffect(() => {
+    return ingestObservabilityStore.subscribe((snapshot) => {
+      setIngestObservability(snapshot);
+    });
+  }, [ingestObservabilityStore]);
 
   useEffect(() => {
     if (initializedRef.current || !isAuditPersistenceAdapterWithStatus(adapter)) {
@@ -192,6 +239,7 @@ export function AuditProvider({
       retryPendingEntries,
       clearResolvedPendingEntries,
       clearStaleFailedPendingEntries,
+      ingestObservability,
     }),
     [
       auditLog,
@@ -200,6 +248,7 @@ export function AuditProvider({
       retryPendingEntries,
       clearResolvedPendingEntries,
       clearStaleFailedPendingEntries,
+      ingestObservability,
     ],
   );
 

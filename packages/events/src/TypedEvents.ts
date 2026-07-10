@@ -147,6 +147,17 @@ export interface DiagnosticsReportEventPayload {
   durationMs?: number;
 }
 
+/** Telemetria de ingest remoto — sem PII (Sprint 5.36). */
+export interface AuditIngestTelemetryEventPayload {
+  outcome: "accepted" | "rejected" | "fallback" | "failed";
+  auditId?: string;
+  requestId?: string;
+  correlationId?: string;
+  errorCode?: string;
+  latencyMs?: number;
+  remoteStatus?: "accepted" | "rejected" | "error";
+}
+
 /**
  * Mapa central de eventos tipados da Douglas AI Platform.
  * Novos módulos estendem este mapa via module augmentation.
@@ -181,6 +192,10 @@ export interface DouglasEventMap {
   "auth:operator:handoff_completed": AuthOperatorHandoffEventPayload;
   "auth:operator:handoff_fallback": AuthOperatorHandoffEventPayload;
   "auth:operator:handoff_failed": AuthOperatorHandoffEventPayload;
+  "audit:ingest:accepted": AuditIngestTelemetryEventPayload;
+  "audit:ingest:rejected": AuditIngestTelemetryEventPayload;
+  "audit:ingest:fallback": AuditIngestTelemetryEventPayload;
+  "audit:ingest:failed": AuditIngestTelemetryEventPayload;
 }
 
 export type EventTopic = keyof DouglasEventMap;
@@ -188,7 +203,14 @@ export type EventTopic = keyof DouglasEventMap;
 export type EventPayload<TTopic extends EventTopic> = DouglasEventMap[TTopic];
 
 export const EVENT_CATEGORIES: Record<EventCategory, EventTopic[]> = {
-  internal: ["internal:module:loaded", "internal:module:ready"],
+  internal: [
+    "internal:module:loaded",
+    "internal:module:ready",
+    "audit:ingest:accepted",
+    "audit:ingest:rejected",
+    "audit:ingest:fallback",
+    "audit:ingest:failed",
+  ],
   system: ["system:platform:ready", "system:health:check"],
   runtime: [
     "runtime:action:started",
@@ -248,4 +270,8 @@ export const TOPIC_CATEGORY: Record<EventTopic, EventCategory> = {
   "auth:operator:handoff_completed": "security",
   "auth:operator:handoff_fallback": "security",
   "auth:operator:handoff_failed": "security",
+  "audit:ingest:accepted": "internal",
+  "audit:ingest:rejected": "internal",
+  "audit:ingest:fallback": "internal",
+  "audit:ingest:failed": "internal",
 };

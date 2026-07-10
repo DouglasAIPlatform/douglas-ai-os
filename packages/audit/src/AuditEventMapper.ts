@@ -418,6 +418,10 @@ export function mapEventToAuditEntries(
 }
 
 export function isAuditedEventTopic(topic: string): boolean {
+  if (topic.startsWith("audit:ingest:")) {
+    return false;
+  }
+
   return (
     topic.startsWith("security:action:") ||
     topic.startsWith("auth:operator:handoff_") ||

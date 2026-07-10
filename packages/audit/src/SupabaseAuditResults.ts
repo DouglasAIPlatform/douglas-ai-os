@@ -10,6 +10,7 @@ export interface SupabaseAuditAppendResult {
   requestId?: string;
   correlationId?: string;
   errorCode?: AuditIngestErrorCode;
+  latencyMs?: number;
 }
 
 export interface SupabaseTableProbeResult {

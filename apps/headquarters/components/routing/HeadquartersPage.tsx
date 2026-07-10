@@ -9,6 +9,7 @@ import { DependencyGraphWidget } from "@/components/widgets/DependencyGraphWidge
 import { LiveEventMonitorWidget } from "@/components/widgets/LiveEventMonitorWidget";
 import { BootDiagnosticsWidget } from "@/components/widgets/BootDiagnosticsWidget";
 import { AuditTrailWidget } from "@/components/widgets/AuditTrailWidget";
+import { AuditIngestObservabilityWidget } from "@/components/widgets/AuditIngestObservabilityWidget";
 import { SupabaseConnectionWidget } from "@/components/widgets/SupabaseConnectionWidget";
 import { SupabaseValidationWidget } from "@/components/widgets/SupabaseValidationWidget";
 import { ProductionSafetyWidget } from "@/components/widgets/ProductionSafetyWidget";
@@ -63,6 +64,9 @@ export function HeadquartersPage() {
         </Card>
         <Card className="lg:col-span-2">
           <AuditTrailWidget />
+        </Card>
+        <Card className="lg:col-span-2">
+          <AuditIngestObservabilityWidget />
         </Card>
         <Card className="lg:col-span-2">
           <SupabaseValidationWidget />
