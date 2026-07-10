@@ -97,8 +97,18 @@ export function AuditTrailWidget({
   isLoading: externalLoading,
   error: externalError,
 }: AuditTrailWidgetProps) {
-  const { entries, totalCount, persistenceStatus, retryPendingEntries } = useAudit();
+  const {
+    entries,
+    totalCount,
+    persistenceStatus,
+    retryPendingEntries,
+    clearResolvedPendingEntries,
+    clearStaleFailedPendingEntries,
+  } = useAudit();
   const [retryInFlight, setRetryInFlight] = useState(false);
+  const [cleanupInFlight, setCleanupInFlight] = useState(false);
+  const [confirmStaleCleanup, setConfirmStaleCleanup] = useState(false);
+  const [confirmResolvedCleanup, setConfirmResolvedCleanup] = useState(false);
 
   const handleRetryPending = useCallback(async () => {
     if (!retryPendingEntries || retryInFlight) return;
@@ -111,6 +121,40 @@ export function AuditTrailWidget({
     }
   }, [retryInFlight, retryPendingEntries]);
 
+  const handleClearResolved = useCallback(() => {
+    if (!clearResolvedPendingEntries || cleanupInFlight) return;
+    setConfirmResolvedCleanup(true);
+  }, [cleanupInFlight, clearResolvedPendingEntries]);
+
+  const handleConfirmClearResolved = useCallback(() => {
+    if (!clearResolvedPendingEntries || cleanupInFlight) return;
+
+    setCleanupInFlight(true);
+    try {
+      clearResolvedPendingEntries();
+    } finally {
+      setCleanupInFlight(false);
+      setConfirmResolvedCleanup(false);
+    }
+  }, [cleanupInFlight, clearResolvedPendingEntries]);
+
+  const handleClearStaleFailed = useCallback(() => {
+    if (!clearStaleFailedPendingEntries || cleanupInFlight) return;
+    setConfirmStaleCleanup(true);
+  }, [cleanupInFlight, clearStaleFailedPendingEntries]);
+
+  const handleConfirmClearStaleFailed = useCallback(() => {
+    if (!clearStaleFailedPendingEntries || cleanupInFlight) return;
+
+    setCleanupInFlight(true);
+    try {
+      clearStaleFailedPendingEntries();
+    } finally {
+      setCleanupInFlight(false);
+      setConfirmStaleCleanup(false);
+    }
+  }, [cleanupInFlight, clearStaleFailedPendingEntries]);
+
   const isLoading = externalLoading ?? false;
   const safeError = sanitizeAuditErrorForDisplay(
     externalError ?? persistenceStatus.lastError,
@@ -122,6 +166,15 @@ export function AuditTrailWidget({
     persistenceStatus.supabaseConfigured &&
     persistenceStatus.pendingEntries > 0 &&
     syncStatus !== "retrying";
+  const queueStats = persistenceStatus.pendingQueueStats;
+  const canClearResolved =
+    Boolean(clearResolvedPendingEntries) &&
+    (queueStats?.resolvedLegacy ?? 0) > 0 &&
+    !cleanupInFlight;
+  const canClearStaleFailed =
+    Boolean(clearStaleFailedPendingEntries) &&
+    (queueStats?.staleFailed ?? 0) > 0 &&
+    !cleanupInFlight;
   const persistedCount = entries.filter(isAuditEntryPersistedLocally).length;
   const edgeFunctionMode = persistenceStatus.supabaseWriteMode === "edge_function";
   const remoteErrorLabel = persistenceStatus.lastRemoteErrorCode
@@ -261,13 +314,42 @@ export function AuditTrailWidget({
               variant={syncStatusVariant(syncStatus)}
             />
           </div>
+          <p className="mt-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+            Ações abaixo afetam apenas a fila local{" "}
+            <code className="text-[length:var(--ds-font-size-xs)]">douglas-ai-os:audit-pending-queue</code>.
+            O audit log principal em localStorage e registros remotos no Supabase não são apagados.
+          </p>
           <dl className="mt-[var(--ds-space-2)] grid gap-[var(--ds-space-2)] sm:grid-cols-2">
             <div>
               <dt className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
-                Pendências
+                Pendências (total)
               </dt>
               <dd className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-primary)]">
-                {persistenceStatus.pendingEntries}
+                {queueStats?.total ?? persistenceStatus.pendingEntries}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                Resolvidas (legado RLS)
+              </dt>
+              <dd className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-primary)]">
+                {queueStats?.resolvedLegacy ?? 0}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                Falhadas
+              </dt>
+              <dd className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-primary)]">
+                {queueStats?.failed ?? 0}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                Antigas/falhadas (elegíveis)
+              </dt>
+              <dd className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-primary)]">
+                {queueStats?.staleFailed ?? 0}
               </dd>
             </div>
             <div>
@@ -298,6 +380,26 @@ export function AuditTrailWidget({
                   : "—"}
               </dd>
             </div>
+            <div>
+              <dt className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                Última limpeza
+              </dt>
+              <dd className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-primary)]">
+                {persistenceStatus.lastCleanupAt
+                  ? new Date(persistenceStatus.lastCleanupAt).toLocaleString("pt-BR")
+                  : "nunca executada"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                Resultado da limpeza
+              </dt>
+              <dd className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-primary)]">
+                {persistenceStatus.lastCleanupResult
+                  ? `${persistenceStatus.lastCleanupResult.removed} removidas · ${persistenceStatus.lastCleanupResult.remaining} restantes`
+                  : "—"}
+              </dd>
+            </div>
           </dl>
           {persistenceStatus.pendingQueueError ? (
             <p className="mt-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-primary)]">
@@ -316,12 +418,82 @@ export function AuditTrailWidget({
                 ? "Retry em andamento…"
                 : "Retry pendências Supabase"}
             </button>
+            <button
+              type="button"
+              disabled={!canClearResolved}
+              onClick={handleClearResolved}
+              className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] bg-[var(--ds-color-surface-muted)] px-[var(--ds-space-3)] py-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)] font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Limpar resolvidas (legado)
+            </button>
+            <button
+              type="button"
+              disabled={!canClearStaleFailed}
+              onClick={handleClearStaleFailed}
+              className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] bg-[var(--ds-color-surface-muted)] px-[var(--ds-space-3)] py-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)] font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Limpar antigas/falhadas
+            </button>
             {!persistenceStatus.supabaseConfigured ? (
               <span className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
                 Supabase não configurado — retry remoto desabilitado
               </span>
             ) : null}
           </div>
+
+          {confirmResolvedCleanup ? (
+            <div className="mt-[var(--ds-space-3)] rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-default)] bg-[var(--ds-color-surface-muted)] p-[var(--ds-space-3)]">
+              <p className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-primary)]">
+                Remover {queueStats?.resolvedLegacy ?? 0} pendência(s) legadas (ex.: falhas RLS/direct_client)
+                da fila local? O audit log em localStorage permanece intacto.
+              </p>
+              <div className="mt-[var(--ds-space-2)] flex flex-wrap gap-[var(--ds-space-2)]">
+                <button
+                  type="button"
+                  onClick={handleConfirmClearResolved}
+                  className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] bg-[var(--ds-color-surface)] px-[var(--ds-space-3)] py-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)] font-[var(--ds-font-weight-medium)]"
+                >
+                  Confirmar limpeza
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmResolvedCleanup(false)}
+                  className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] px-[var(--ds-space-3)] py-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)]"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {confirmStaleCleanup ? (
+            <div className="mt-[var(--ds-space-3)] rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-default)] bg-[var(--ds-color-surface-muted)] p-[var(--ds-space-3)]">
+              <p className="text-[length:var(--ds-font-size-xs)] font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)]">
+                Confirmar limpeza de pendências antigas/falhadas
+              </p>
+              <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                Serão removidas {queueStats?.staleFailed ?? 0} entrada(s) da fila local com falha
+                persistente e idade acima do limite. Nenhum registro remoto ou audit log principal
+                será apagado. Execute retry antes se ainda deseja sincronizar.
+              </p>
+              <div className="mt-[var(--ds-space-2)] flex flex-wrap gap-[var(--ds-space-2)]">
+                <button
+                  type="button"
+                  onClick={handleConfirmClearStaleFailed}
+                  className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] bg-[var(--ds-color-surface)] px-[var(--ds-space-3)] py-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)] font-[var(--ds-font-weight-medium)]"
+                >
+                  Confirmar limpeza
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmStaleCleanup(false)}
+                  className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] px-[var(--ds-space-3)] py-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)]"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {persistenceStatus.lastSyncAt ? (

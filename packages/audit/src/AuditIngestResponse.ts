@@ -1,16 +1,29 @@
-/** Status remoto padronizado da Edge Function audit-ingest (Sprint 5.27). */
+/** Status remoto padronizado da Edge Function audit-ingest. */
 export type AuditIngestResponseStatus = "accepted" | "rejected" | "error";
 
+/** Códigos estáveis Sprint 5.33 (snake_case). */
 export type AuditIngestErrorCode =
-  | "METHOD_NOT_ALLOWED"
-  | "INVALID_JSON"
-  | "VALIDATION_FAILED"
-  | "JWT_REQUIRED"
-  | "JWT_INVALID"
-  | "CONFIG_ERROR"
-  | "INSERT_FAILED"
-  | "FUNCTION_ERROR"
-  | "FUNCTION_NOT_DEPLOYED";
+  | "method_not_allowed"
+  | "cors_rejected"
+  | "missing_auth"
+  | "invalid_payload"
+  | "insert_failed"
+  | "internal_error"
+  | "function_error"
+  | "function_not_deployed";
+
+/** Alias legados Sprint 5.27 — normalizados em parse. */
+const LEGACY_ERROR_CODE_ALIASES: Record<string, AuditIngestErrorCode> = {
+  METHOD_NOT_ALLOWED: "method_not_allowed",
+  INVALID_JSON: "invalid_payload",
+  VALIDATION_FAILED: "invalid_payload",
+  JWT_REQUIRED: "missing_auth",
+  JWT_INVALID: "missing_auth",
+  CONFIG_ERROR: "internal_error",
+  INSERT_FAILED: "insert_failed",
+  FUNCTION_ERROR: "function_error",
+  FUNCTION_NOT_DEPLOYED: "function_not_deployed",
+};
 
 export interface AuditIngestResponse {
   success: boolean;
@@ -30,7 +43,37 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Parses Edge Function body — supports Sprint 5.27 format and legacy `{ ok }` responses. */
+/** Normaliza códigos legados (SCREAMING_SNAKE) para snake_case Sprint 5.33. */
+export function normalizeAuditIngestErrorCode(
+  code: string | undefined,
+): AuditIngestErrorCode | undefined {
+  if (!code) {
+    return undefined;
+  }
+
+  if (code in LEGACY_ERROR_CODE_ALIASES) {
+    return LEGACY_ERROR_CODE_ALIASES[code];
+  }
+
+  const canonical: AuditIngestErrorCode[] = [
+    "method_not_allowed",
+    "cors_rejected",
+    "missing_auth",
+    "invalid_payload",
+    "insert_failed",
+    "internal_error",
+    "function_error",
+    "function_not_deployed",
+  ];
+
+  if (canonical.includes(code as AuditIngestErrorCode)) {
+    return code as AuditIngestErrorCode;
+  }
+
+  return "internal_error";
+}
+
+/** Parses Edge Function body — supports Sprint 5.27/5.33 format and legacy `{ ok }`. */
 export function parseAuditIngestResponse(data: unknown): AuditIngestResponse | null {
   if (!isRecord(data)) {
     return null;
@@ -42,6 +85,8 @@ export function parseAuditIngestResponse(data: unknown): AuditIngestResponse | n
       return null;
     }
 
+    const rawCode = isNonEmptyString(data.errorCode) ? data.errorCode : undefined;
+
     return {
       success: data.success,
       status,
@@ -49,8 +94,7 @@ export function parseAuditIngestResponse(data: unknown): AuditIngestResponse | n
       auditId: isNonEmptyString(data.auditId) ? data.auditId : undefined,
       requestId: isNonEmptyString(data.requestId) ? data.requestId : undefined,
       correlationId: isNonEmptyString(data.correlationId) ? data.correlationId : undefined,
-      errorCode:
-        isNonEmptyString(data.errorCode) ? (data.errorCode as AuditIngestErrorCode) : undefined,
+      errorCode: normalizeAuditIngestErrorCode(rawCode),
     };
   }
 
@@ -61,7 +105,7 @@ export function parseAuditIngestResponse(data: unknown): AuditIngestResponse | n
       status: data.ok ? "accepted" : "rejected",
       message: legacyError ?? (data.ok ? "Audit entry inserted" : "Edge Function rejected payload"),
       auditId: isNonEmptyString(data.auditId) ? data.auditId : undefined,
-      errorCode: data.ok ? undefined : "VALIDATION_FAILED",
+      errorCode: data.ok ? undefined : "invalid_payload",
     };
   }
 
@@ -89,13 +133,12 @@ export const AUDIT_INGEST_RESPONSE_STATUS_LABELS: Record<AuditIngestResponseStat
 };
 
 export const AUDIT_INGEST_ERROR_CODE_LABELS: Partial<Record<AuditIngestErrorCode, string>> = {
-  METHOD_NOT_ALLOWED: "Método HTTP inválido",
-  INVALID_JSON: "JSON inválido",
-  VALIDATION_FAILED: "Payload inválido",
-  JWT_REQUIRED: "JWT obrigatório",
-  JWT_INVALID: "JWT inválido",
-  CONFIG_ERROR: "Configuração da função",
-  INSERT_FAILED: "Falha no insert",
-  FUNCTION_ERROR: "Erro na invocação",
-  FUNCTION_NOT_DEPLOYED: "Função não deployada",
+  method_not_allowed: "Método HTTP inválido",
+  cors_rejected: "Origin não permitido (CORS)",
+  missing_auth: "Autenticação obrigatória ou inválida",
+  invalid_payload: "Payload inválido",
+  insert_failed: "Falha ao persistir remotamente",
+  internal_error: "Erro interno da função",
+  function_error: "Erro na invocação",
+  function_not_deployed: "Função não deployada",
 };

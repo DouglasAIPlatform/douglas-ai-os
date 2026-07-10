@@ -1,45 +1,22 @@
 # Audit Edge Function — Douglas AI Platform
 
-> Status: Hardening v1.1  
-> Sprint: 5.24 (foundation) + 5.27 (hardening)  
-> Escopo: função `audit-ingest` preparada — **sem deploy nesta sprint**.
+> Status: Production hardening v1.2  
+> Sprints: 5.24 (foundation) + 5.27 (hardening) + 5.33 (production)  
+> Escopo: função `audit-ingest` — deploy manual; **service_role somente no runtime Deno**.
 
 ## Problema
 
-A tabela `operational_audit_entries` (migration 5.20) tem RLS que **nega INSERT** para roles `anon` e `authenticated`. O browser com anon key não pode append audit de forma segura.
+A tabela `operational_audit_entries` (migration 5.20) nega INSERT para `anon`/`authenticated`. O browser não pode append audit via PostgREST com anon key.
 
 ```
-Browser (anon key)
-  └── INSERT operational_audit_entries  ❌ RLS policy WITH CHECK (false)
-  └── localStorage fallback             ✅ Sprint 5.22
-```
-
-## Solução — Edge Function `audit-ingest`
-
-```
-Browser (anon key + JWT futuro)
+Browser (anon key + JWT opcional)
   └── functions.invoke('audit-ingest', { body: AuditEntry })
         └── Deno runtime
-              └── service_role (server-only)
+              └── service_role (server-only, auto-injetada)
                     └── INSERT operational_audit_entries  ✅
 ```
 
-A `service_role` existe **apenas** no ambiente da Edge Function (injetada pelo Supabase). **Nunca** no bundle Next.js, widgets ou `.env.local` do app.
-
-## Arquivos
-
-| Path | Função |
-|------|--------|
-| `supabase/functions/audit-ingest/index.ts` | Handler Deno — validate + insert + resposta padronizada |
-| `supabase/functions/audit-ingest/README.md` | Contrato e deploy |
-| `packages/audit/src/AuditIngestPayload.ts` | Validação client-side |
-| `packages/audit/src/AuditIngestResponse.ts` | Contrato de resposta + parser + sanitização UI |
-| `packages/audit/src/SupabaseAuditEdgeInvoke.ts` | `client.functions.invoke()` |
-| `packages/audit/src/SupabaseAuditWriteMode.ts` | `direct_client` \| `edge_function` |
-
-## Resposta padronizada (Sprint 5.27)
-
-Todas as respostas JSON seguem:
+## Resposta padronizada
 
 ```json
 {
@@ -49,7 +26,7 @@ Todas as respostas JSON seguem:
   "auditId": "…",
   "requestId": "…",
   "correlationId": "…",
-  "errorCode": "VALIDATION_FAILED"
+  "errorCode": "invalid_payload"
 }
 ```
 
@@ -57,137 +34,140 @@ Todas as respostas JSON seguem:
 |-------|-----------|
 | `success` | Resultado booleano |
 | `status` | `accepted` \| `rejected` \| `error` |
-| `message` | Mensagem humana (sem secrets) |
-| `auditId` | ID da entrada aceita ou rejeitada |
-| `requestId` | De `metadata.requestId` quando presente |
-| `correlationId` | De `metadata.correlationId` quando presente |
-| `errorCode` | Código estável para UI/ops |
+| `message` | Mensagem sanitizada (sem secrets) |
+| `auditId` / `requestId` / `correlationId` | Preservados em sucesso **e** rejeição de payload |
+| `errorCode` | Código estável snake_case (Sprint 5.33) |
 
-### Códigos de erro
+### Códigos de erro (Sprint 5.33)
 
 | `errorCode` | HTTP | Significado |
 |-------------|------|-------------|
-| `METHOD_NOT_ALLOWED` | 405 | Apenas POST |
-| `INVALID_JSON` | 400 | Body malformado |
-| `VALIDATION_FAILED` | 400 | Campos obrigatórios/opcionais inválidos |
-| `JWT_REQUIRED` | 401 | Modo JWT ativo sem Bearer |
-| `JWT_INVALID` | 401 | Token inválido/expirado |
-| `CONFIG_ERROR` | 500 | Env vars server-side ausentes |
-| `INSERT_FAILED` | 500 | Falha Postgres (sem expor detail sensível) |
+| `method_not_allowed` | 405 | Apenas POST (+ OPTIONS preflight) |
+| `cors_rejected` | 403 | Origin fora da allowlist |
+| `missing_auth` | 401 | JWT obrigatório ausente/inválido |
+| `invalid_payload` | 400 | JSON/payload/campos/metadata inválidos |
+| `insert_failed` | 500 | Falha Postgres (detail não exposto ao client) |
+| `internal_error` | 500 | Configuração server-side incompleta |
 
-O client (`parseAuditIngestResponse`) aceita também respostas legacy `{ ok: true }` da foundation 5.24.
+Códigos legados Sprint 5.27 (`METHOD_NOT_ALLOWED`, `VALIDATION_FAILED`, etc.) são **normalizados** no client via `normalizeAuditIngestErrorCode()`.
 
-## Validação de payload
+Códigos client-side adicionais: `function_error`, `function_not_deployed`.
 
-### Obrigatórios
+## Validação de payload (Sprint 5.33)
 
-`id`, `timestamp`, `actor`, `role`, `source`, `action`, `target`, `severity`, `message`
+### Obrigatórios (não vazios)
 
-### Opcionais (validados quando presentes)
+`id`, `timestamp`, `actor`, `role`, `source`, `action`, `severity`, `message`
 
-| Campo | Regra |
-|-------|-------|
-| `metadata` | Deve ser objeto |
-| `metadata.correlationId` / `correlation_id` | String não vazia |
-| `metadata.requestId` / `request_id` | String não vazia |
-| `metadata.auditId` / `audit_id` | String não vazia |
+`target` — string (pode ser vazia).
 
-Alinhado com `validateAuditEntryForIngest()` no pacote `@douglas/audit`.
+### Metadata
 
-## Modos do adapter (`SupabaseAuditWriteMode`)
+| Regra | Limite |
+|-------|--------|
+| Deve ser objeto | — |
+| Tamanho serializado | ≤ 8192 bytes (default) |
+| `correlationId`, `requestId`, `auditId` (+ snake_case) | String não vazia quando presente |
 
-| Modo | Padrão | Comportamento |
-|------|--------|---------------|
-| `direct_client` | **Sim** | INSERT via PostgREST — bloqueado por RLS; fallback local |
-| `edge_function` | Não | Invoke `audit-ingest` — recomendado após deploy |
+Override opcional: `AUDIT_INGEST_MAX_METADATA_BYTES` (secret Edge).
 
-Headquarters mantém default `direct_client` até deploy validado em staging.
+Alinhado com `validateAuditEntryForIngest()` em `@douglas/audit`.
 
 ## Variáveis de ambiente
 
-### Frontend / Next.js (`.env.local`)
+### Frontend / Next.js — **nunca**
 
 | Variável | Permitido |
 |----------|-----------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Sim |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Sim |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Nunca** |
+| `AUDIT_INGEST_*` | **Nunca** |
 
-### Edge Function runtime (Supabase platform — server-side)
+### Edge Function runtime (Supabase platform)
 
-| Variável | Fonte | Descrição |
-|----------|-------|-----------|
-| `SUPABASE_URL` | Auto-injetada | URL do projeto |
-| `SUPABASE_SERVICE_ROLE_KEY` | Auto-injetada | Insert com bypass RLS — **nunca logar** |
-| `SUPABASE_ANON_KEY` | Auto-injetada | Validação JWT quando modo JWT ativo |
-| `AUDIT_INGEST_CORS_ORIGIN` | Secret manual | Origin permitido (default `*` dev) |
-| `AUDIT_INGEST_REQUIRE_JWT` | Secret manual | `"true"` exige Bearer JWT válido |
+| Variável | Obrigatória | Default | Descrição |
+|----------|-------------|---------|-----------|
+| `SUPABASE_URL` | Sim (auto) | — | URL do projeto |
+| `SUPABASE_SERVICE_ROLE_KEY` | Sim (auto) | — | INSERT bypass RLS — **somente Deno** |
+| `SUPABASE_ANON_KEY` | Sim se JWT ativo (auto) | — | Valida token via `auth.getUser()` |
+| `AUDIT_INGEST_CORS_ORIGIN` | Não | `*` | Allowlist CORS — origin único ou lista separada por vírgula |
+| `AUDIT_INGEST_REQUIRE_JWT` | Não | `false` | `"true"` exige `Authorization: Bearer` |
+| `AUDIT_INGEST_MAX_METADATA_BYTES` | Não | `8192` | Limite de metadata serializado |
 
-**Por que service_role nunca vai para o frontend:** a anon key + JWT identificam o usuário; a Edge Function usa service_role **somente no Deno** para INSERT autorizado. Expor service_role no browser bypassaria RLS inteiro.
+**Nenhuma env nova é exigida para dev local** — defaults permitem `*` CORS e JWT desligado.
 
-### CORS em produção
-
-```bash
-# Supabase Dashboard → Edge Functions → Secrets
-AUDIT_INGEST_CORS_ORIGIN=https://headquarters.seudominio.com
-```
-
-Default `*` é aceitável em dev/staging inicial; restringir antes de produção.
-
-### JWT futuro (staging/prod)
+## CORS restrito (staging/prod)
 
 ```bash
-AUDIT_INGEST_REQUIRE_JWT=true
-supabase functions deploy audit-ingest   # com verify_jwt habilitado no config
+# Origin único
+supabase secrets set AUDIT_INGEST_CORS_ORIGIN=https://headquarters.example.com
+
+# Múltiplos origins
+supabase secrets set AUDIT_INGEST_CORS_ORIGIN=https://staging.example.com,http://localhost:3000
 ```
 
-Com JWT ativo, invoke usa sessão Supabase Auth do browser (`Authorization: Bearer …` automático via client).
+- `*` (default): aceita qualquer origin (dev)
+- Lista explícita: rejeita com `cors_rejected` (403)
+- Invoke sem header `Origin` (Supabase client): permitido — não é browser cross-origin
 
-## Fluxo de append (edge_function — futuro)
+## JWT obrigatório
 
-1. `AuditProvider` grava evento → `CompositeAuditPersistenceAdapter`
-2. localStorage append (sempre)
-3. `SupabaseAuditPersistenceAdapter.appendAsync()`
-4. `validateAuditEntryForIngest(entry)`
-5. `invokeAuditIngestEdgeFunction({ client, functionName, payload })`
-6. Edge Function valida + JWT (se ativo) + `insert` com service_role
-7. Resposta padronizada → `lastRemoteStatus` no widget
-8. Falha → `fallbackUsed: true`, localStorage permanece source of truth
+```bash
+supabase secrets set AUDIT_INGEST_REQUIRE_JWT=true
+supabase functions deploy audit-ingest
+```
 
-## UI — AuditTrailWidget
+Comportamento Sprint 5.33:
 
-Quando `writeMode: "edge_function"`:
+1. Verifica presença de `Authorization: Bearer <token>`
+2. Valida token via `supabase.auth.getUser(token)` com anon key server-side
+3. Rejeita com `missing_auth` (401) se ausente ou inválido
 
-- Modo Edge Function
-- Último status remoto (`accepted` / `rejected` / `error`)
-- Fallback local ativo/inativo
-- Flag função não deployada
-- Erros sanitizados (`sanitizeAuditErrorForDisplay`) — sem JWT/keys
+### Limites documentados (fora do escopo desta sprint)
 
-## Riscos
+- Não valida claims customizados, roles ou vínculo `actor` ↔ `auth.uid()`
+- Não implementa rate limiting
+- Não verifica idempotência de `audit_id`
+- Produção futura: cruzar `actor_id` com usuário autenticado + RLS complementar
 
-| Risco | Mitigação atual | Próximo passo |
-|-------|-----------------|---------------|
-| service_role leak | Não está no repo/client | CI secret scan |
-| Invoke sem auth | JWT opcional via env | `AUDIT_INGEST_REQUIRE_JWT=true` em prod |
-| Payload spoofing | Validação + JWT futuro | Cruzar actor com `auth.uid()` |
-| Duplicate audit_id | Nenhuma | Unique index + idempotency |
-| CORS `*` | Configurável via env | Domínio prod restrito |
-| Função não deployada | `direct_client` default + local fallback | Deploy staging |
+## Modos do adapter
 
-## Deploy futuro (checklist)
+| Modo | HQ atual | Comportamento |
+|------|----------|---------------|
+| `direct_client` | Disponível | RLS bloqueia → fallback local |
+| `edge_function` | **Ativo em staging** | Invoke audit-ingest |
 
-1. Aplicar migrations 5.20 (checklist ops 5.23)
-2. `supabase secrets set AUDIT_INGEST_CORS_ORIGIN=…`
-3. `supabase functions deploy audit-ingest`
-4. Testar invoke manual (curl / Dashboard)
-5. Validar INSERT no SQL Editor
-6. `auditSupabaseConfig.writeMode = "edge_function"` em staging
-7. Validar `AuditTrailWidget` — status remoto `accepted`
-8. Ativar `AUDIT_INGEST_REQUIRE_JWT=true` antes de produção
+Falha remota → localStorage + pending queue (Sprints 5.30/5.32).
+
+## Testar em staging
+
+1. Migrations aplicadas (`operational_audit_entries`)
+2. `supabase functions deploy audit-ingest`
+3. Secrets:
+   ```bash
+   supabase secrets set AUDIT_INGEST_CORS_ORIGIN=http://localhost:3000
+   # opcional staging:
+   # supabase secrets set AUDIT_INGEST_REQUIRE_JWT=true
+   ```
+4. HQ: `writeMode: "edge_function"` em `features/platform-audit/config.ts`
+5. Login Supabase → gerar evento audit → `AuditTrailWidget`:
+   - Último status remoto: `accepted`
+   - Fallback local: inativo (se sync OK)
+6. Teste negativo CORS: origin não listado → `cors_rejected`
+7. Teste JWT (se ativo): logout → invoke → `missing_auth`, fallback local ativo
+
+### curl (smoke test)
+
+```bash
+curl -X POST "$SUPABASE_URL/functions/v1/audit-ingest" \
+  -H "Authorization: Bearer $ANON_OR_USER_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"test-1","timestamp":"2026-07-09T00:00:00.000Z","actor":"ops","role":"admin","source":"platform","action":"readiness_status_changed","target":"staging","severity":"info","message":"smoke test","metadata":{}}'
+```
 
 ## Referências
 
 - [audit-migration-supabase.md](./audit-migration-supabase.md)
+- [audit-pending-queue-retry.md](./audit-pending-queue-retry.md)
 - [supabase-schema-rls.md](./supabase-schema-rls.md)
-- [../operations/apply-supabase-migrations.md](../operations/apply-supabase-migrations.md)

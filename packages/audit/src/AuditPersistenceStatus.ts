@@ -1,6 +1,8 @@
 import type { AuditPersistenceMode } from "./AuditPersistenceMode";
 import type { AuditRetryStatus } from "./AuditRetryStatus";
 import type { AuditSyncResult } from "./AuditSyncResult";
+import type { AuditPendingCleanupResult } from "./AuditPendingCleanupResult";
+import type { AuditPendingQueueStats } from "./AuditPendingQueueStats";
 import type { SupabaseAuditWriteMode } from "./SupabaseAuditWriteMode";
 
 export type AuditPersistenceAdapterKind =
@@ -46,6 +48,12 @@ export interface AuditPersistenceStatus {
   lastSyncResult?: AuditSyncResult | null;
   /** Erro ao ler/escrever a fila local de pendências. */
   pendingQueueError?: string | null;
+  /** Contagens da fila local de pendências. */
+  pendingQueueStats?: AuditPendingQueueStats;
+  /** Timestamp ISO da última limpeza da fila local. */
+  lastCleanupAt?: string | null;
+  /** Resultado da última limpeza da fila local. */
+  lastCleanupResult?: AuditPendingCleanupResult | null;
 }
 
 export const DEFAULT_AUDIT_PERSISTENCE_STATUS: AuditPersistenceStatus = {
@@ -68,6 +76,15 @@ export const DEFAULT_AUDIT_PERSISTENCE_STATUS: AuditPersistenceStatus = {
   lastRetryError: null,
   lastSyncResult: null,
   pendingQueueError: null,
+  pendingQueueStats: {
+    total: 0,
+    unattempted: 0,
+    failed: 0,
+    resolvedLegacy: 0,
+    staleFailed: 0,
+  },
+  lastCleanupAt: null,
+  lastCleanupResult: null,
 };
 
 export function syncLegacyPersistenceStatusFields(

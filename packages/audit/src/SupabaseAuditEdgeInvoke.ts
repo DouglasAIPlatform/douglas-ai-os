@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AuditIngestPayload } from "./AuditIngestPayload";
 import { readCorrelationId, readRequestId } from "./AuditIngestPayload";
 import {
+  normalizeAuditIngestErrorCode,
   parseAuditIngestResponse,
   sanitizeAuditErrorForDisplay,
   type AuditIngestErrorCode,
@@ -82,7 +83,7 @@ export async function invokeAuditIngestEdgeFunction(
       const notDeployed = isFunctionNotFoundError(message);
       return buildFailureResult(message, {
         edgeFunctionNotDeployed: notDeployed,
-        errorCode: notDeployed ? "FUNCTION_NOT_DEPLOYED" : "FUNCTION_ERROR",
+        errorCode: notDeployed ? "function_not_deployed" : "function_error",
         remoteStatus: "error",
       });
     }
@@ -90,7 +91,7 @@ export async function invokeAuditIngestEdgeFunction(
     const parsed = parseAuditIngestResponse(data);
     if (!parsed) {
       return buildFailureResult("Resposta inválida da Edge Function audit-ingest", {
-        errorCode: "FUNCTION_ERROR",
+        errorCode: "function_error",
         remoteStatus: "error",
       });
     }
@@ -103,7 +104,8 @@ export async function invokeAuditIngestEdgeFunction(
         auditId: parsed.auditId,
         requestId: parsed.requestId ?? readRequestId(payload.metadata),
         correlationId: parsed.correlationId ?? readCorrelationId(payload.metadata),
-        errorCode: parsed.errorCode ?? "VALIDATION_FAILED",
+        errorCode:
+          normalizeAuditIngestErrorCode(parsed.errorCode) ?? "invalid_payload",
       };
     }
 
@@ -120,7 +122,7 @@ export async function invokeAuditIngestEdgeFunction(
     const notDeployed = isFunctionNotFoundError(message);
     return buildFailureResult(message, {
       edgeFunctionNotDeployed: notDeployed,
-      errorCode: notDeployed ? "FUNCTION_NOT_DEPLOYED" : "FUNCTION_ERROR",
+      errorCode: notDeployed ? "function_not_deployed" : "function_error",
       remoteStatus: "error",
     });
   }

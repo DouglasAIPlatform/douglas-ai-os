@@ -13,6 +13,9 @@ export type { AuditPendingEntry } from "./AuditPendingEntry";
 export type { AuditPendingQueue } from "./AuditPendingQueue";
 export type { AuditRetryPolicy } from "./AuditRetryPolicy";
 export type { AuditRetryStatus } from "./AuditRetryStatus";
+export type { AuditPendingCleanupResult } from "./AuditPendingCleanupResult";
+export type { AuditPendingCleanupPolicy, AuditPendingCleanupOperation } from "./AuditPendingCleanupPolicy";
+export type { AuditPendingQueueStats } from "./AuditPendingQueueStats";
 export type { AuditSyncResult } from "./AuditSyncResult";
 export type { AuditPersistenceIntegrationConfig } from "./AuditProvider";
 
@@ -46,6 +49,28 @@ export {
 export {
   DEFAULT_AUDIT_RETRY_POLICY,
 } from "./AuditRetryPolicy";
+
+export {
+  DEFAULT_AUDIT_PENDING_CLEANUP_POLICY,
+} from "./AuditPendingCleanupPolicy";
+
+export {
+  EMPTY_AUDIT_PENDING_CLEANUP_RESULT,
+} from "./AuditPendingCleanupResult";
+
+export {
+  EMPTY_AUDIT_PENDING_QUEUE_STATS,
+} from "./AuditPendingQueueStats";
+
+export {
+  AuditPendingQueueCleanup,
+  computeAuditPendingQueueStats,
+  createAuditPendingQueueCleanup,
+  isFailedPendingEntry,
+  isLegacyResolvedPendingEntry,
+  isStalePendingEntry,
+  type AuditPendingQueueCleanupState,
+} from "./AuditPendingQueueCleanup";
 
 export {
   EMPTY_AUDIT_SYNC_RESULT,
@@ -124,6 +149,7 @@ export type {
 export {
   AUDIT_INGEST_ERROR_CODE_LABELS,
   AUDIT_INGEST_RESPONSE_STATUS_LABELS,
+  normalizeAuditIngestErrorCode,
   parseAuditIngestResponse,
   sanitizeAuditErrorForDisplay,
 } from "./AuditIngestResponse";

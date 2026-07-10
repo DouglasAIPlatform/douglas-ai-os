@@ -159,6 +159,30 @@ export function AuditProvider({
     });
   }, [adapter]);
 
+  const clearResolvedPendingEntries = useMemo(() => {
+    if (!adapter.clearResolvedPendingEntries) {
+      return undefined;
+    }
+
+    return () => {
+      const result = adapter.clearResolvedPendingEntries!();
+      setPersistenceStatus(adapter.getStatus());
+      return result;
+    };
+  }, [adapter]);
+
+  const clearStaleFailedPendingEntries = useMemo(() => {
+    if (!adapter.clearStaleFailedPendingEntries) {
+      return undefined;
+    }
+
+    return () => {
+      const result = adapter.clearStaleFailedPendingEntries!();
+      setPersistenceStatus(adapter.getStatus());
+      return result;
+    };
+  }, [adapter]);
+
   const value = useMemo(
     () => ({
       auditLog,
@@ -166,8 +190,17 @@ export function AuditProvider({
       totalCount: auditLog.getCount(),
       persistenceStatus,
       retryPendingEntries,
+      clearResolvedPendingEntries,
+      clearStaleFailedPendingEntries,
     }),
-    [auditLog, entries, persistenceStatus, retryPendingEntries],
+    [
+      auditLog,
+      entries,
+      persistenceStatus,
+      retryPendingEntries,
+      clearResolvedPendingEntries,
+      clearStaleFailedPendingEntries,
+    ],
   );
 
   return <AuditContext.Provider value={value}>{children}</AuditContext.Provider>;

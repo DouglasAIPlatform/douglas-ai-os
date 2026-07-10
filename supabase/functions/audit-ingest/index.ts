@@ -1,8 +1,8 @@
 /**
  * Douglas AI Platform — audit-ingest Edge Function
- * Sprint 5.27 — Hardening (não deployada pelo monorepo)
+ * Sprint 5.27 (foundation) + 5.33 (production hardening)
  *
- * Manter validação/mapping alinhados com:
+ * Alinhado com:
  * - packages/audit/src/AuditIngestPayload.ts
  * - packages/audit/src/AuditIngestResponse.ts
  * - packages/audit/src/SupabaseAuditRowMapper.ts
@@ -12,6 +12,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const TABLE_NAME = "operational_audit_entries";
+const DEFAULT_MAX_METADATA_BYTES = 8192;
 
 const AUDIT_SOURCES = new Set([
   "security",
@@ -51,14 +52,14 @@ const OPTIONAL_METADATA_STRING_KEYS = [
 
 type IngestStatus = "accepted" | "rejected" | "error";
 
+/** Códigos estáveis Sprint 5.33 (snake_case). */
 type IngestErrorCode =
-  | "METHOD_NOT_ALLOWED"
-  | "INVALID_JSON"
-  | "VALIDATION_FAILED"
-  | "JWT_REQUIRED"
-  | "JWT_INVALID"
-  | "CONFIG_ERROR"
-  | "INSERT_FAILED";
+  | "method_not_allowed"
+  | "cors_rejected"
+  | "missing_auth"
+  | "invalid_payload"
+  | "insert_failed"
+  | "internal_error";
 
 interface AuditIngestPayload {
   id: string;
@@ -83,19 +84,86 @@ interface AuditIngestResponseBody {
   errorCode?: IngestErrorCode;
 }
 
-function getCorsHeaders(): Record<string, string> {
-  const origin = Deno.env.get("AUDIT_INGEST_CORS_ORIGIN") ?? "*";
+interface CorrelationIds {
+  auditId?: string;
+  requestId?: string;
+  correlationId?: string;
+}
+
+function parseMaxMetadataBytes(): number {
+  const raw = Deno.env.get("AUDIT_INGEST_MAX_METADATA_BYTES");
+  if (!raw) return DEFAULT_MAX_METADATA_BYTES;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_METADATA_BYTES;
+}
+
+function parseCorsAllowlist(): string[] {
+  const raw = Deno.env.get("AUDIT_INGEST_CORS_ORIGIN");
+  if (!raw || raw.trim() === "" || raw.trim() === "*") {
+    return ["*"];
+  }
+  return raw.split(",").map((entry) => entry.trim()).filter(Boolean);
+}
+
+function isOriginAllowed(req: Request): boolean {
+  const allowlist = parseCorsAllowlist();
+  if (allowlist.includes("*")) {
+    return true;
+  }
+
+  const origin = req.headers.get("Origin");
+  if (!origin) {
+    // Invoke server-side / Supabase client sem header Origin
+    return true;
+  }
+
+  return allowlist.includes(origin);
+}
+
+function buildCorsHeaders(req: Request): Record<string, string> | null {
+  if (!isOriginAllowed(req)) {
+    return null;
+  }
+
+  const allowlist = parseCorsAllowlist();
+  const origin = req.headers.get("Origin");
+  const allowedOrigin = allowlist.includes("*")
+    ? (origin ?? "*")
+    : (origin ?? allowlist[0] ?? "*");
+
   return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
   };
 }
 
-function jsonResponse(body: AuditIngestResponseBody, status = 200): Response {
+function jsonResponse(
+  req: Request,
+  body: AuditIngestResponseBody,
+  status = 200,
+): Response {
+  const corsHeaders = buildCorsHeaders(req);
+  if (!corsHeaders) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        status: "rejected",
+        message: "Origin não permitido",
+        errorCode: "cors_rejected",
+      } satisfies AuditIngestResponseBody),
+      {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...getCorsHeaders(), "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
 
@@ -105,18 +173,6 @@ function isNonEmptyString(value: unknown): value is string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function validateOptionalMetadataFields(metadata: Record<string, unknown>): string | null {
-  for (const key of OPTIONAL_METADATA_STRING_KEYS) {
-    if (!(key in metadata)) continue;
-    const value = metadata[key];
-    if (value === null || value === undefined) continue;
-    if (!isNonEmptyString(value)) {
-      return `Campo metadata.${key} deve ser string não vazia quando presente`;
-    }
-  }
-  return null;
 }
 
 function readCorrelationId(metadata: Record<string, unknown>): string | null {
@@ -134,6 +190,47 @@ function readAuditId(metadata: Record<string, unknown>, fallbackId: string): str
   return isNonEmptyString(value) ? value : fallbackId;
 }
 
+function extractCorrelationIds(body: unknown): CorrelationIds {
+  if (!isRecord(body)) {
+    return {};
+  }
+
+  const metadata = isRecord(body.metadata) ? body.metadata : {};
+  const auditId = isNonEmptyString(body.id)
+    ? body.id
+    : readAuditId(metadata, "") || undefined;
+
+  return {
+    auditId,
+    requestId: readRequestId(metadata) ?? undefined,
+    correlationId: readCorrelationId(metadata) ?? undefined,
+  };
+}
+
+function validateOptionalMetadataFields(metadata: Record<string, unknown>): string | null {
+  for (const key of OPTIONAL_METADATA_STRING_KEYS) {
+    if (!(key in metadata)) continue;
+    const value = metadata[key];
+    if (value === null || value === undefined) continue;
+    if (!isNonEmptyString(value)) {
+      return `metadata.${key} inválido`;
+    }
+  }
+  return null;
+}
+
+function validateMetadataSize(metadata: Record<string, unknown>): string | null {
+  try {
+    const size = new TextEncoder().encode(JSON.stringify(metadata)).byteLength;
+    if (size > parseMaxMetadataBytes()) {
+      return "metadata excede o limite permitido";
+    }
+  } catch {
+    return "metadata inválido";
+  }
+  return null;
+}
+
 function validatePayload(body: unknown):
   | { valid: true; payload: AuditIngestPayload }
   | { valid: false; error: string } {
@@ -149,11 +246,11 @@ function validatePayload(body: unknown):
   if (!isNonEmptyString(body.role)) return { valid: false, error: "Campo role é obrigatório" };
 
   if (!isNonEmptyString(body.source) || !AUDIT_SOURCES.has(body.source)) {
-    return { valid: false, error: "Campo source inválido" };
+    return { valid: false, error: "Campo source é obrigatório e inválido" };
   }
 
   if (!isNonEmptyString(body.action) || !AUDIT_ACTIONS.has(body.action)) {
-    return { valid: false, error: "Campo action inválido" };
+    return { valid: false, error: "Campo action é obrigatório e inválido" };
   }
 
   if (typeof body.target !== "string") {
@@ -161,11 +258,11 @@ function validatePayload(body: unknown):
   }
 
   if (!isNonEmptyString(body.severity) || !AUDIT_SEVERITIES.has(body.severity)) {
-    return { valid: false, error: "Campo severity inválido" };
+    return { valid: false, error: "Campo severity é obrigatório e inválido" };
   }
 
-  if (typeof body.message !== "string") {
-    return { valid: false, error: "Campo message deve ser string" };
+  if (!isNonEmptyString(body.message)) {
+    return { valid: false, error: "Campo message é obrigatório" };
   }
 
   if (body.metadata !== undefined && body.metadata !== null && !isRecord(body.metadata)) {
@@ -176,6 +273,11 @@ function validatePayload(body: unknown):
   const optionalError = validateOptionalMetadataFields(metadata);
   if (optionalError) {
     return { valid: false, error: optionalError };
+  }
+
+  const metadataSizeError = validateMetadataSize(metadata);
+  if (metadataSizeError) {
+    return { valid: false, error: metadataSizeError };
   }
 
   return {
@@ -224,11 +326,12 @@ async function assertJwtWhenRequired(req: Request, supabaseUrl: string): Promise
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return jsonResponse(
+      req,
       {
         success: false,
         status: "rejected",
-        message: "JWT obrigatório para audit-ingest",
-        errorCode: "JWT_REQUIRED",
+        message: "Autenticação obrigatória para audit-ingest",
+        errorCode: "missing_auth",
       },
       401,
     );
@@ -237,17 +340,31 @@ async function assertJwtWhenRequired(req: Request, supabaseUrl: string): Promise
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   if (!anonKey) {
     return jsonResponse(
+      req,
       {
         success: false,
         status: "error",
-        message: "Edge Function misconfigured — anon key missing for JWT validation",
-        errorCode: "CONFIG_ERROR",
+        message: "Função indisponível — configuração incompleta",
+        errorCode: "internal_error",
       },
       500,
     );
   }
 
-  const token = authHeader.slice("Bearer ".length);
+  const token = authHeader.slice("Bearer ".length).trim();
+  if (!token) {
+    return jsonResponse(
+      req,
+      {
+        success: false,
+        status: "rejected",
+        message: "Autenticação obrigatória para audit-ingest",
+        errorCode: "missing_auth",
+      },
+      401,
+    );
+  }
+
   const userClient = createClient(supabaseUrl, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -255,11 +372,12 @@ async function assertJwtWhenRequired(req: Request, supabaseUrl: string): Promise
   const { data, error } = await userClient.auth.getUser(token);
   if (error || !data.user) {
     return jsonResponse(
+      req,
       {
         success: false,
         status: "rejected",
-        message: "JWT inválido ou expirado",
-        errorCode: "JWT_INVALID",
+        message: "Token de autenticação inválido ou expirado",
+        errorCode: "missing_auth",
       },
       401,
     );
@@ -269,19 +387,31 @@ async function assertJwtWhenRequired(req: Request, supabaseUrl: string): Promise
 }
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders();
-
   if (req.method === "OPTIONS") {
+    const corsHeaders = buildCorsHeaders(req);
+    if (!corsHeaders) {
+      return jsonResponse(
+        req,
+        {
+          success: false,
+          status: "rejected",
+          message: "Origin não permitido",
+          errorCode: "cors_rejected",
+        },
+        403,
+      );
+    }
     return new Response("ok", { headers: corsHeaders });
   }
 
   if (req.method !== "POST") {
     return jsonResponse(
+      req,
       {
         success: false,
         status: "rejected",
-        message: `Método ${req.method} não permitido — use POST`,
-        errorCode: "METHOD_NOT_ALLOWED",
+        message: "Método não permitido — use POST",
+        errorCode: "method_not_allowed",
       },
       405,
     );
@@ -292,11 +422,12 @@ Deno.serve(async (req) => {
 
   if (!supabaseUrl || !serviceRoleKey) {
     return jsonResponse(
+      req,
       {
         success: false,
         status: "error",
-        message: "Edge Function misconfigured — server env vars missing",
-        errorCode: "CONFIG_ERROR",
+        message: "Função indisponível — configuração incompleta",
+        errorCode: "internal_error",
       },
       500,
     );
@@ -312,24 +443,30 @@ Deno.serve(async (req) => {
     body = await req.json();
   } catch {
     return jsonResponse(
+      req,
       {
         success: false,
         status: "rejected",
-        message: "Corpo JSON inválido",
-        errorCode: "INVALID_JSON",
+        message: "Payload JSON inválido",
+        errorCode: "invalid_payload",
       },
       400,
     );
   }
 
+  const correlationIds = extractCorrelationIds(body);
   const validation = validatePayload(body);
   if (!validation.valid) {
     return jsonResponse(
+      req,
       {
         success: false,
         status: "rejected",
         message: validation.error,
-        errorCode: "VALIDATION_FAILED",
+        auditId: correlationIds.auditId,
+        requestId: correlationIds.requestId,
+        correlationId: correlationIds.correlationId,
+        errorCode: "invalid_payload",
       },
       400,
     );
@@ -344,21 +481,23 @@ Deno.serve(async (req) => {
   const { error } = await adminClient.from(TABLE_NAME).insert(row);
 
   if (error) {
+    console.error("audit-ingest insert_failed", error.code ?? "unknown");
     return jsonResponse(
+      req,
       {
         success: false,
         status: "error",
-        message: "Falha ao inserir audit entry",
+        message: "Falha ao persistir entrada de audit",
         auditId: payload.id,
         requestId: readRequestId(payload.metadata) ?? undefined,
         correlationId: readCorrelationId(payload.metadata) ?? undefined,
-        errorCode: "INSERT_FAILED",
+        errorCode: "insert_failed",
       },
       500,
     );
   }
 
-  return jsonResponse({
+  return jsonResponse(req, {
     success: true,
     status: "accepted",
     message: "Audit entry accepted",

@@ -11,6 +11,7 @@ import { BootDiagnosticsWidget } from "@/components/widgets/BootDiagnosticsWidge
 import { AuditTrailWidget } from "@/components/widgets/AuditTrailWidget";
 import { SupabaseConnectionWidget } from "@/components/widgets/SupabaseConnectionWidget";
 import { SupabaseValidationWidget } from "@/components/widgets/SupabaseValidationWidget";
+import { ProductionSafetyWidget } from "@/components/widgets/ProductionSafetyWidget";
 import { AuthStatusWidget } from "@/components/widgets/AuthStatusWidget";
 import { OperatorProfileBootstrapWidget } from "@/components/widgets/OperatorProfileBootstrapWidget";
 import { UnifiedPlatformStatusWidget } from "@/components/widgets/UnifiedPlatformStatusWidget";
@@ -65,6 +66,9 @@ export function HeadquartersPage() {
         </Card>
         <Card className="lg:col-span-2">
           <SupabaseValidationWidget />
+        </Card>
+        <Card className="lg:col-span-2">
+          <ProductionSafetyWidget />
         </Card>
         <Card className="lg:col-span-2">
           <SupabaseConnectionWidget />

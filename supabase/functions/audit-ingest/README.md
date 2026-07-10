@@ -1,68 +1,38 @@
 # audit-ingest — Edge Function
 
-> Sprint 5.24 (foundation) + 5.27 (hardening). **Não deployada automaticamente** pelo monorepo.
-
-## Objetivo
-
-Inserir entradas do Operational Audit Log em `operational_audit_entries` usando `service_role` **somente no runtime Deno**, contornando a negação de INSERT via RLS para `anon`/`authenticated`.
+> Sprint 5.24 + 5.27 + **5.33 production hardening**. Deploy manual.
 
 ## Contrato HTTP
 
 | Item | Valor |
 |------|-------|
-| Método | `POST` (OPTIONS para CORS preflight) |
+| Método | `POST` (OPTIONS preflight) |
 | Body | JSON `AuditEntry` |
-| Sucesso | `{ success: true, status: "accepted", message, auditId, … }` |
-| Rejeição | `{ success: false, status: "rejected", message, errorCode }` |
-| Erro | `{ success: false, status: "error", message, errorCode }` |
+| Sucesso | `{ success: true, status: "accepted", auditId, requestId?, correlationId? }` |
+| Erro | `{ success: false, status, message, errorCode }` — mensagens sanitizadas |
 
-Campos obrigatórios: `id`, `timestamp`, `actor`, `role`, `source`, `action`, `target`, `severity`, `message`.
+## errorCode (Sprint 5.33)
 
-Opcionais validados: `metadata` (objeto), `metadata.correlationId`, `metadata.requestId`, `metadata.auditId` (e aliases snake_case).
+`method_not_allowed` · `cors_rejected` · `missing_auth` · `invalid_payload` · `insert_failed` · `internal_error`
 
-## Variáveis de ambiente (runtime Edge)
+## Secrets (runtime only)
 
-| Variável | Onde | Frontend? |
-|----------|------|-----------|
-| `SUPABASE_URL` | Auto-injetada | **Nunca** |
-| `SUPABASE_SERVICE_ROLE_KEY` | Auto-injetada | **Nunca** |
-| `SUPABASE_ANON_KEY` | Auto-injetada | **Nunca** (usada só para validar JWT) |
-| `AUDIT_INGEST_CORS_ORIGIN` | Secret | **Nunca** — default `*` |
-| `AUDIT_INGEST_REQUIRE_JWT` | Secret | **Nunca** — `"true"` em staging/prod futuro |
+| Variável | Default | Descrição |
+|----------|---------|-----------|
+| `AUDIT_INGEST_CORS_ORIGIN` | `*` | Allowlist — origin ou lista CSV |
+| `AUDIT_INGEST_REQUIRE_JWT` | off | `"true"` → Bearer obrigatório |
+| `AUDIT_INGEST_MAX_METADATA_BYTES` | 8192 | Limite metadata |
 
-## CORS
+Auto-injetadas: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`
 
-- Dev: default `Access-Control-Allow-Origin: *`
-- Prod: definir `AUDIT_INGEST_CORS_ORIGIN=https://seu-dominio`
-
-## JWT (modo futuro)
-
-Com `AUDIT_INGEST_REQUIRE_JWT=true`, requests sem `Authorization: Bearer <jwt>` retornam `401 JWT_REQUIRED`.
-
-## Alinhamento com monorepo
-
-| Monorepo | Edge Function |
-|----------|---------------|
-| `AuditIngestPayload.ts` | `validatePayload()` |
-| `AuditIngestResponse.ts` | `jsonResponse()` body |
-| `SupabaseAuditRowMapper.ts` | `mapToRow()` |
-
-## Deploy (manual)
+## Deploy staging
 
 ```bash
-supabase secrets set AUDIT_INGEST_CORS_ORIGIN=https://staging.example.com
-# supabase secrets set AUDIT_INGEST_REQUIRE_JWT=true   # após auth estável
+supabase secrets set AUDIT_INGEST_CORS_ORIGIN=http://localhost:3000,https://hq.staging.example.com
+# supabase secrets set AUDIT_INGEST_REQUIRE_JWT=true
 supabase functions deploy audit-ingest
-```
-
-Após deploy:
-
-```typescript
-// features/platform-audit/config.ts
-writeMode: "edge_function",
 ```
 
 ## Referências
 
 - `docs/architecture/audit-edge-function.md`
-- `docs/architecture/audit-migration-supabase.md`

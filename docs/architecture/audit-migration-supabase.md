@@ -1,7 +1,7 @@
 # Audit Migration — Supabase
 
-> Status: Foundation v1.2  
-> Sprint: 5.22 (+ Edge Function hardening 5.27)  
+> Status: Foundation v1.3  
+> Sprint: 5.22 (+ Edge Function 5.27/5.33)  
 > Escopo: persistência com fallback — **localStorage permanece ativo**.
 
 ## Objetivo
@@ -94,17 +94,27 @@ INSERT para `anon`/`authenticated` está **negado** na migration 5.20. Writes vi
 
 Migração definitiva exigirá Edge Function (Sprint 5.24/5.27) — resposta padronizada + JWT/CORS configuráveis — ou write server-side equivalente.
 
-### Edge Function (Sprint 5.27)
+### Edge Function (Sprint 5.27 + 5.33)
 
 Quando `writeMode: "edge_function"`:
 
 - Client valida payload (`AuditIngestPayload`) antes do invoke
-- Resposta padronizada parseada por `parseAuditIngestResponse()`
-- Falha ou função não deployada → `fallbackUsed: true`, localStorage intacto
-- `AuditTrailWidget` exibe status remoto e erros sanitizados
+- Resposta padronizada parseada por `parseAuditIngestResponse()` + `normalizeAuditIngestErrorCode()`
+- Códigos estáveis: `method_not_allowed`, `cors_rejected`, `missing_auth`, `invalid_payload`, `insert_failed`, `internal_error`
+- Falha ou função não deployada → `fallbackUsed: true`, localStorage + pending queue intactos
 - **service_role permanece server-side** — nunca no app Next.js
 
-Default Headquarters continua `direct_client` até deploy em staging.
+Headquarters usa `edge_function` após deploy validado em staging (`features/platform-audit/config.ts`).
+
+#### Env vars Edge (staging/prod)
+
+| Secret | Dev default | Staging/prod |
+|--------|-------------|--------------|
+| `AUDIT_INGEST_CORS_ORIGIN` | `*` | Domínio HQ restrito |
+| `AUDIT_INGEST_REQUIRE_JWT` | off | `true` recomendado antes prod |
+| `AUDIT_INGEST_MAX_METADATA_BYTES` | 8192 | opcional |
+
+Deploy: `supabase functions deploy audit-ingest` — ver [audit-edge-function.md](./audit-edge-function.md).
 
 ## Fallback automático
 

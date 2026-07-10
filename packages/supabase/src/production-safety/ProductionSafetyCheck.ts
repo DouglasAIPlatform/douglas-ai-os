@@ -1,0 +1,45 @@
+export type ProductionSafetyCheckOutcome = "pass" | "warn" | "fail" | "skip";
+
+export type ProductionSafetyCheckId =
+  | "supabase_configured"
+  | "core_tables_detected"
+  | "auth_api_available"
+  | "user_authenticated"
+  | "operator_profile_found"
+  | "effective_role_not_mock"
+  | "active_owner_present"
+  | "audit_write_mode_edge_function"
+  | "audit_remote_status_accepted"
+  | "audit_fallback_healthy"
+  | "pending_queue_within_limit"
+  | "edge_function_deployed"
+  | "production_mock_role_locked";
+
+export interface ProductionSafetyCheck {
+  id: ProductionSafetyCheckId;
+  label: string;
+  outcome: ProductionSafetyCheckOutcome;
+  message: string;
+  /** Quando true e outcome === fail, status geral vira blocked. */
+  blocking: boolean;
+  docPath?: string;
+}
+
+export const PRODUCTION_SAFETY_CHECK_LABELS: Record<ProductionSafetyCheckId, string> = {
+  supabase_configured: "Supabase configurado",
+  core_tables_detected: "Tabelas principais detectadas",
+  auth_api_available: "Auth API disponível",
+  user_authenticated: "Usuário autenticado",
+  operator_profile_found: "operator_profiles encontrado",
+  effective_role_not_mock: "Role efetiva não é mock",
+  active_owner_present: "Owner real ativo",
+  audit_write_mode_edge_function: "Audit writeMode edge_function",
+  audit_remote_status_accepted: "Último status remoto audit accepted",
+  audit_fallback_healthy: "Fallback local sem erros críticos",
+  pending_queue_within_limit: "Fila de pendências abaixo do limite",
+  edge_function_deployed: "Edge Function audit-ingest indicada",
+  production_mock_role_locked: "Produção bloqueia troca livre de mock role",
+};
+
+/** Limite seguro de entradas na fila local de pendências (Sprint 5.34). */
+export const PRODUCTION_SAFETY_PENDING_QUEUE_LIMIT = 25;

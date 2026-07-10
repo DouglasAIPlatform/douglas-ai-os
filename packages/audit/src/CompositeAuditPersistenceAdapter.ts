@@ -15,6 +15,8 @@ import {
 } from "./AuditPersistenceStatus";
 import type { AuditSyncResult } from "./AuditSyncResult";
 import { AuditSyncManager } from "./AuditSyncManager";
+import type { AuditPendingCleanupResult } from "./AuditPendingCleanupResult";
+import { AuditPendingQueueCleanup } from "./AuditPendingQueueCleanup";
 import type { AuditEntry, AuditPersistenceAdapter } from "./AuditTypes";
 import {
   createLocalStorageAuditPersistenceAdapter,
@@ -43,6 +45,8 @@ export interface AuditPersistenceAdapterWithStatus extends AuditPersistenceAdapt
   hydrate(): AuditEntry[] | Promise<AuditEntry[]>;
   initialize?(): Promise<void>;
   retryPendingEntries?(): Promise<AuditSyncResult>;
+  clearResolvedPendingEntries?(): AuditPendingCleanupResult;
+  clearStaleFailedPendingEntries?(): AuditPendingCleanupResult;
   onStatusChange?(listener: () => void): () => void;
 }
 
@@ -52,6 +56,7 @@ export class CompositeAuditPersistenceAdapter implements AuditPersistenceAdapter
   private readonly supabaseAdapter: SupabaseAuditPersistenceAdapter | null;
   private readonly pendingQueue: LocalStorageAuditPendingQueue;
   private readonly syncManager: AuditSyncManager;
+  private readonly pendingQueueCleanup: AuditPendingQueueCleanup;
   private readonly isSupabaseConfigured: boolean;
   private readonly statusListeners = new Set<() => void>();
   private fallbackUsed = false;
@@ -94,6 +99,7 @@ export class CompositeAuditPersistenceAdapter implements AuditPersistenceAdapter
     this.syncManager = new AuditSyncManager(this.pendingQueue, this.supabaseAdapter, {
       isSupabaseConfigured: this.isSupabaseConfigured,
     });
+    this.pendingQueueCleanup = new AuditPendingQueueCleanup(this.pendingQueue);
   }
 
   onStatusChange(listener: () => void): () => void {
@@ -111,6 +117,7 @@ export class CompositeAuditPersistenceAdapter implements AuditPersistenceAdapter
     const localStatus = this.localAdapter.getStatus();
     const supabaseStatus = this.supabaseAdapter?.getStatus();
     const syncState = this.syncManager.getState();
+    const cleanupState = this.pendingQueueCleanup.getState();
 
     const activeAdapter: AuditPersistenceStatus["activeAdapter"] =
       this.effectiveMode === "localStorage" || !this.supabaseAdapter
@@ -148,6 +155,9 @@ export class CompositeAuditPersistenceAdapter implements AuditPersistenceAdapter
       lastRetryError: syncState.lastRetryError,
       lastSyncResult: syncState.lastSyncResult,
       pendingQueueError: this.pendingQueue.getLastQueueError(),
+      pendingQueueStats: this.pendingQueueCleanup.getStats(),
+      lastCleanupAt: cleanupState.lastCleanupAt,
+      lastCleanupResult: cleanupState.lastCleanupResult,
     });
   }
 
@@ -217,6 +227,18 @@ export class CompositeAuditPersistenceAdapter implements AuditPersistenceAdapter
       this.lastError = result.lastError;
     }
 
+    this.notifyStatusChange();
+    return result;
+  }
+
+  clearResolvedPendingEntries(): AuditPendingCleanupResult {
+    const result = this.pendingQueueCleanup.clearResolved();
+    this.notifyStatusChange();
+    return result;
+  }
+
+  clearStaleFailedPendingEntries(): AuditPendingCleanupResult {
+    const result = this.pendingQueueCleanup.clearStaleFailed();
     this.notifyStatusChange();
     return result;
   }

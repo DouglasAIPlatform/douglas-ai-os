@@ -22,7 +22,7 @@ export interface AuditIngestValidationResult {
 export interface AuditIngestValidationError {
   valid: false;
   error: string;
-  errorCode?: "VALIDATION_FAILED";
+  errorCode?: "invalid_payload";
 }
 
 const AUDIT_SOURCES: AuditSource[] = [
@@ -69,6 +69,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+const DEFAULT_MAX_METADATA_BYTES = 8192;
+
+function validateMetadataSize(metadata: Record<string, unknown>): string | null {
+  try {
+    const size = new TextEncoder().encode(JSON.stringify(metadata)).byteLength;
+    if (size > DEFAULT_MAX_METADATA_BYTES) {
+      return "Campo metadata excede o limite permitido";
+    }
+  } catch {
+    return "Campo metadata inválido";
+  }
+  return null;
+}
+
 function validateOptionalMetadataFields(metadata: Record<string, unknown>): string | null {
   for (const key of OPTIONAL_METADATA_STRING_KEYS) {
     if (!(key in metadata)) {
@@ -111,43 +125,43 @@ export function validateAuditEntryForIngest(
     return {
       valid: false,
       error: "Payload deve ser um objeto AuditEntry",
-      errorCode: "VALIDATION_FAILED",
+      errorCode: "invalid_payload",
     };
   }
 
   if (!isNonEmptyString(entry.id)) {
-    return { valid: false, error: "Campo id é obrigatório", errorCode: "VALIDATION_FAILED" };
+    return { valid: false, error: "Campo id é obrigatório", errorCode: "invalid_payload" };
   }
 
   if (!isNonEmptyString(entry.timestamp)) {
     return {
       valid: false,
       error: "Campo timestamp é obrigatório",
-      errorCode: "VALIDATION_FAILED",
+      errorCode: "invalid_payload",
     };
   }
 
   if (!isNonEmptyString(entry.actor)) {
-    return { valid: false, error: "Campo actor é obrigatório", errorCode: "VALIDATION_FAILED" };
+    return { valid: false, error: "Campo actor é obrigatório", errorCode: "invalid_payload" };
   }
 
   if (!isNonEmptyString(entry.role)) {
-    return { valid: false, error: "Campo role é obrigatório", errorCode: "VALIDATION_FAILED" };
+    return { valid: false, error: "Campo role é obrigatório", errorCode: "invalid_payload" };
   }
 
   if (!isNonEmptyString(entry.source) || !AUDIT_SOURCES.includes(entry.source as AuditSource)) {
-    return { valid: false, error: "Campo source inválido", errorCode: "VALIDATION_FAILED" };
+    return { valid: false, error: "Campo source inválido", errorCode: "invalid_payload" };
   }
 
   if (!isNonEmptyString(entry.action) || !AUDIT_ACTIONS.includes(entry.action as AuditAction)) {
-    return { valid: false, error: "Campo action inválido", errorCode: "VALIDATION_FAILED" };
+    return { valid: false, error: "Campo action inválido", errorCode: "invalid_payload" };
   }
 
   if (typeof entry.target !== "string") {
     return {
       valid: false,
       error: "Campo target deve ser string",
-      errorCode: "VALIDATION_FAILED",
+      errorCode: "invalid_payload",
     };
   }
 
@@ -155,14 +169,14 @@ export function validateAuditEntryForIngest(
     !isNonEmptyString(entry.severity) ||
     !AUDIT_SEVERITIES.includes(entry.severity as AuditSeverity)
   ) {
-    return { valid: false, error: "Campo severity inválido", errorCode: "VALIDATION_FAILED" };
+    return { valid: false, error: "Campo severity inválido", errorCode: "invalid_payload" };
   }
 
-  if (typeof entry.message !== "string") {
+  if (!isNonEmptyString(entry.message)) {
     return {
       valid: false,
-      error: "Campo message deve ser string",
-      errorCode: "VALIDATION_FAILED",
+      error: "Campo message é obrigatório",
+      errorCode: "invalid_payload",
     };
   }
 
@@ -170,14 +184,19 @@ export function validateAuditEntryForIngest(
     return {
       valid: false,
       error: "Campo metadata deve ser objeto quando presente",
-      errorCode: "VALIDATION_FAILED",
+      errorCode: "invalid_payload",
     };
   }
 
   const metadata = isRecord(entry.metadata) ? entry.metadata : {};
+  const metadataSizeError = validateMetadataSize(metadata);
+  if (metadataSizeError) {
+    return { valid: false, error: metadataSizeError, errorCode: "invalid_payload" };
+  }
+
   const optionalError = validateOptionalMetadataFields(metadata);
   if (optionalError) {
-    return { valid: false, error: optionalError, errorCode: "VALIDATION_FAILED" };
+    return { valid: false, error: optionalError, errorCode: "invalid_payload" };
   }
 
   return {

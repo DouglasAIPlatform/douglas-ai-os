@@ -208,7 +208,7 @@ export class SupabaseAuditPersistenceAdapter implements AuditPersistenceAdapter 
         lastError: validation.error,
         fallbackUsed: true,
         lastRemoteStatus: "rejected",
-        lastRemoteErrorCode: validation.errorCode ?? "VALIDATION_FAILED",
+        lastRemoteErrorCode: validation.errorCode ?? "invalid_payload",
       });
       return { success: false, error: validation.error, errorCode: validation.errorCode };
     }
