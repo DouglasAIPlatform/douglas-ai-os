@@ -1,5 +1,6 @@
 {
   "name": "douglas-ai-os",
+  "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "scripts": {
@@ -8,11 +9,16 @@
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
     "validate": "turbo run typecheck lint build",
+    "test": "vitest run",
+    "test:rbac": "vitest run --config vitest.config.ts",
     "start": "turbo start",
     "supabase:migration-plan": "node --experimental-strip-types scripts/print-supabase-migration-plan.ts",
-    "release:check": "node --experimental-strip-types scripts/release-readiness.ts"
+    "release:check": "node --experimental-strip-types scripts/release-readiness.ts",
+    "release:status": "node --experimental-strip-types scripts/release-status.ts",
+    "release:prepare": "node --experimental-strip-types scripts/release-prepare.ts"
   },
   "devDependencies": {
-    "turbo": "^2.5.4"
+    "turbo": "^2.5.4",
+    "vitest": "^3.2.4"
   }
 }

@@ -8,6 +8,10 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "dependencies": {
+    "@supabase/supabase-js": "^2",
+    "@douglas/environment": "workspace:*"
+  },
   "peerDependencies": {
     "@supabase/supabase-js": "^2",
     "react": "^19"

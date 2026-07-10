@@ -32,6 +32,8 @@
     "@douglas/security": "workspace:*",
     "@douglas/audit": "workspace:*",
     "@douglas/demo-data": "workspace:*",
+    "@douglas/environment": "workspace:*",
+    "@douglas/release": "workspace:*",
     "@douglas/supabase": "workspace:*",
     "@douglas/automation": "workspace:*",
     "@douglas/workflow": "workspace:*",

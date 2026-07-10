@@ -1,0 +1,54 @@
+name: Release Metadata Validation
+
+# Read-only: valida que tag vX.Y.Z corresponde ao manifest.
+# Não publica release, não faz deploy, não usa secrets.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  validate-tag-metadata:
+    name: Validate tag vs manifest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract tag version
+        id: tag
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "version=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Tag version: $TAG"
+
+      - name: Read manifest version
+        id: manifest
+        run: |
+          MANIFEST_VERSION=$(node -e "console.log(require('./release/manifest.json').version)")
+          echo "version=$MANIFEST_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Manifest version: $MANIFEST_VERSION"
+
+      - name: Compare versions
+        run: |
+          TAG_VERSION="${{ steps.tag.outputs.version }}"
+          MANIFEST_VERSION="${{ steps.manifest.outputs.version }}"
+          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "Tag v$TAG_VERSION does not match manifest $MANIFEST_VERSION"
+            exit 1
+          fi
+          echo "Tag matches manifest: v$TAG_VERSION"
+
+      - name: Validate SemVer format
+        run: |
+          TAG_VERSION="${{ steps.tag.outputs.version }}"
+          node -e "
+            const semver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+            if (!semver.test(process.argv[1])) {
+              console.error('Invalid SemVer:', process.argv[1]);
+              process.exit(1);
+            }
+          " "$TAG_VERSION"

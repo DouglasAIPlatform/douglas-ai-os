@@ -64,4 +64,29 @@ export { useActionConfirmation } from "./useActionConfirmation";
 export { OperatorContext, type OperatorContextValue, type OperatorRoleSource } from "./OperatorContext";
 export { OperatorProvider, type OperatorProviderProps } from "./OperatorProvider";
 export { useOperator } from "./useOperator";
-export { isMockRoleChangeAllowed } from "./isMockRoleChangeAllowed";
+export { isMockRoleChangeAllowed, resolveMockRoleChangeAllowed } from "./isMockRoleChangeAllowed";
+
+export {
+  RBAC_PERMISSION_MATRIX,
+  OWNER_EXCLUSIVE_PERMISSIONS,
+  isRoleAllowedForCapability,
+  matrixEntryForCapability,
+  securedActionsFromMatrix,
+  type RBACCapabilityId,
+  type RBACMatrixEntry,
+} from "./rbac-verification/RBACPermissionMatrix";
+export type {
+  RBACVerificationCase,
+  RBACVerificationCategory,
+} from "./rbac-verification/RBACVerificationCase";
+export type { RBACVerificationResult } from "./rbac-verification/RBACVerificationResult";
+export {
+  buildRBACVerificationReport,
+  type RBACVerificationReport,
+  type RBACVerificationStatus,
+} from "./rbac-verification/RBACVerificationReport";
+export {
+  buildRBACVerificationCases,
+  formatRBACVerificationReport,
+  runRBACVerification,
+} from "./rbac-verification/RBACVerificationRunner";

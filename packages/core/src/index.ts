@@ -16,7 +16,7 @@ export { CORE_MODULE_IDS, CORE_TOPICS } from "./CoreTypes";
 
 export { Config, type ConfigValue } from "./Config";
 export { Environment, type EnvironmentConfig } from "./Environment";
-export { Version, type PlatformVersion } from "./Version";
+export { Version, type PlatformVersion, OFFICIAL_PLATFORM_VERSION } from "./Version";
 export { Logger, type LogEntry } from "./Logger";
 export { EventBus, createCoreEvent, type CoreEventHandler } from "./EventBus";
 

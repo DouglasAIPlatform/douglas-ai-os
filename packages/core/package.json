@@ -11,6 +11,9 @@
   "peerDependencies": {
     "react": "^19"
   },
+  "dependencies": {
+    "@douglas/release": "workspace:*"
+  },
   "devDependencies": {
     "@types/react": "^19",
     "typescript": "^5"

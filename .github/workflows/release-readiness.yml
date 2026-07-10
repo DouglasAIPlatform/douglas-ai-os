@@ -36,3 +36,7 @@ jobs:
 
       - name: Release readiness check
         run: pnpm release:check
+
+      - name: Release status (read-only)
+        run: pnpm release:status
+        continue-on-error: true

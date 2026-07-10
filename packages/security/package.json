@@ -9,7 +9,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@douglas/events": "workspace:*"
+    "@douglas/events": "workspace:*",
+    "@douglas/environment": "workspace:*"
   },
   "peerDependencies": {
     "react": "^19"

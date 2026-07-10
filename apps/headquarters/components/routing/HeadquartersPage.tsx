@@ -13,6 +13,8 @@ import { AuditIngestObservabilityWidget } from "@/components/widgets/AuditIngest
 import { SupabaseConnectionWidget } from "@/components/widgets/SupabaseConnectionWidget";
 import { SupabaseValidationWidget } from "@/components/widgets/SupabaseValidationWidget";
 import { ProductionSafetyWidget } from "@/components/widgets/ProductionSafetyWidget";
+import { EnvironmentStatusWidget } from "@/components/widgets/EnvironmentStatusWidget";
+import { ReleaseStatusWidget } from "@/components/widgets/ReleaseStatusWidget";
 import { AuthStatusWidget } from "@/components/widgets/AuthStatusWidget";
 import { OperatorProfileBootstrapWidget } from "@/components/widgets/OperatorProfileBootstrapWidget";
 import { UnifiedPlatformStatusWidget } from "@/components/widgets/UnifiedPlatformStatusWidget";
@@ -70,6 +72,12 @@ export function HeadquartersPage() {
         </Card>
         <Card className="lg:col-span-2">
           <SupabaseValidationWidget />
+        </Card>
+        <Card className="lg:col-span-2">
+          <EnvironmentStatusWidget />
+        </Card>
+        <Card className="lg:col-span-2">
+          <ReleaseStatusWidget />
         </Card>
         <Card className="lg:col-span-2">
           <ProductionSafetyWidget />

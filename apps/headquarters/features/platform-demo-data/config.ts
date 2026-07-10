@@ -1,15 +1,13 @@
 import type { DemoDataConfig } from "@douglas/demo-data";
+import { resolveDemoDataModeFromEnvironment } from "@douglas/environment";
 
 /**
  * Configuração central de demo data — Headquarters.
  *
- * Modos:
- * - development: demo ligado (padrão em dev)
- * - production: demo desligado (padrão em build production)
- * - manual: flags explícitas abaixo
+ * Modos derivados de NEXT_PUBLIC_DOS_ENVIRONMENT (Sprint 5.39).
  */
 export const demoDataConfig: DemoDataConfig = {
-  mode: process.env.NODE_ENV === "production" ? "production" : "development",
+  mode: resolveDemoDataModeFromEnvironment(),
   demoTickerIntervalMs: 8000,
 };
 

@@ -1,0 +1,13 @@
+{
+  "version": "0.1.0",
+  "channel": "development",
+  "platform": "Douglas AI OS",
+  "status": "draft",
+  "metadata": {
+    "codename": "foundation",
+    "releasedAt": null,
+    "preparedAt": "2026-07-10T00:00:00.000Z",
+    "commit": null,
+    "notes": "Checkpoint inicial — plataforma em fundação com Headquarters, Supabase, audit, RBAC e separação de ambientes."
+  }
+}

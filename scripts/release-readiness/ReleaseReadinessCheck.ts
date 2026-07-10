@@ -9,7 +9,18 @@ export type ReleaseReadinessCheckId =
   | "supabase_temp_not_tracked"
   | "audit_write_mode_edge_function"
   | "operational_docs_present"
-  | "versioned_secrets_scan";
+  | "versioned_secrets_scan"
+  | "rbac_verification_tests"
+  | "dos_environment_documented"
+  | "dos_environment_policies_present"
+  | "dos_environment_production_no_mocks"
+  | "release_manifest_present"
+  | "release_semver_valid"
+  | "release_version_consistency"
+  | "changelog_present"
+  | "changelog_current_version_entry"
+  | "release_workflows_present"
+  | "release_environment_profile_compatible";
 
 export interface ReleaseReadinessCheck {
   id: ReleaseReadinessCheckId;
@@ -31,6 +42,17 @@ export const RELEASE_READINESS_CHECK_LABELS: Record<ReleaseReadinessCheckId, str
   audit_write_mode_edge_function: "Audit writeMode = edge_function",
   operational_docs_present: "Documentação operacional obrigatória",
   versioned_secrets_scan: "Scan de secrets versionados",
+  rbac_verification_tests: "Suíte RBAC (pnpm test:rbac)",
+  dos_environment_documented: "NEXT_PUBLIC_DOS_ENVIRONMENT documentado",
+  dos_environment_policies_present: "Políticas de ambiente presentes",
+  dos_environment_production_no_mocks: "Production sem mocks na política",
+  release_manifest_present: "Manifesto de release presente",
+  release_semver_valid: "Versão SemVer válida no manifest",
+  release_version_consistency: "Versões consistentes entre fontes",
+  changelog_present: "CHANGELOG.md presente",
+  changelog_current_version_entry: "Entrada da versão atual no CHANGELOG",
+  release_workflows_present: "Workflows de release/validate presentes",
+  release_environment_profile_compatible: "Perfil de ambiente compatível com release",
 };
 
 /** Migrations mínimas esperadas para release (ordem lexicográfica). */
@@ -51,5 +73,15 @@ export const REQUIRED_RELEASE_DOCS = [
   "docs/operations/release-checklist.md",
   "docs/architecture/audit-edge-function.md",
   "docs/architecture/audit-migration-supabase.md",
+  "docs/security/rbac-verification-suite.md",
+  "docs/architecture/environment-separation.md",
+  "docs/operations/staging-production-environments.md",
+  "docs/engineering/release-versioning.md",
+  "docs/operations/release-process.md",
   "supabase/functions/audit-ingest/README.md",
+] as const;
+
+export const REQUIRED_RELEASE_WORKFLOWS = [
+  ".github/workflows/validate.yml",
+  ".github/workflows/release-readiness.yml",
 ] as const;

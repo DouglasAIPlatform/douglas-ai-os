@@ -17,6 +17,10 @@
       "dependsOn": ["typecheck", "lint", "build"],
       "outputs": []
     },
+    "test": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    },
     "dev": {
       "cache": false,
       "persistent": true

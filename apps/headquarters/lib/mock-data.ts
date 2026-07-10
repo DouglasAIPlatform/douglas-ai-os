@@ -123,4 +123,4 @@ export const dailyMission =
 
 export const userName = "Douglas";
 
-export const platformVersion = "0.1";
+export const platformVersion = "0.1.0";

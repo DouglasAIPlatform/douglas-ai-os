@@ -39,6 +39,7 @@ Exit code `1` apenas quando status = `failed`.
 | `audit_write_mode_edge_function` | Sim | `writeMode: "edge_function"` no HQ |
 | `operational_docs_present` | Sim | Documentação operacional/arquitetura obrigatória |
 | `versioned_secrets_scan` | Sim | Padrões óbvios de secrets em arquivos rastreados pelo Git |
+| `rbac_verification_tests` | Sim | Executa `pnpm test:rbac` (Vitest, Sprint 5.38) |
 
 \* Alertas não bloqueantes quando handler ou README não são identificados claramente.
 

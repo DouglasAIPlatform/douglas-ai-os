@@ -16,7 +16,14 @@ export type ProductionSafetyCheckId =
   | "production_mock_role_locked"
   | "audit_ingest_accepted_observed"
   | "audit_ingest_failure_rate"
-  | "audit_ingest_no_critical_errors";
+  | "audit_ingest_no_critical_errors"
+  | "platform_environment_declared"
+  | "platform_environment_mocks_disabled"
+  | "platform_environment_mock_role_locked"
+  | "platform_environment_auth_profile_required"
+  | "platform_environment_edge_function_required"
+  | "platform_environment_incompatible"
+  | "platform_environment_dev_not_production_ready";
 
 export interface ProductionSafetyCheck {
   id: ProductionSafetyCheckId;
@@ -45,6 +52,13 @@ export const PRODUCTION_SAFETY_CHECK_LABELS: Record<ProductionSafetyCheckId, str
   audit_ingest_accepted_observed: "Ingest remoto accepted observado (sessão)",
   audit_ingest_failure_rate: "Taxa de falha de ingest na sessão",
   audit_ingest_no_critical_errors: "Sem erro crítico recente de ingest",
+  platform_environment_declared: "Ambiente DOS explicitamente definido",
+  platform_environment_mocks_disabled: "Mocks desligados (staging/production)",
+  platform_environment_mock_role_locked: "Mock role bloqueada no ambiente",
+  platform_environment_auth_profile_required: "Auth profile real esperado",
+  platform_environment_edge_function_required: "Audit edge_function esperado",
+  platform_environment_incompatible: "Configuração incompatível com ambiente",
+  platform_environment_dev_not_production_ready: "Development não pronto para produção",
 };
 
 /** Mínimo de tentativas para avaliar taxa de falha (Sprint 5.36). */

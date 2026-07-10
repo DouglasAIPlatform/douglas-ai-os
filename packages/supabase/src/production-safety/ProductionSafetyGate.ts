@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { EnvironmentGateSnapshot } from "@douglas/environment";
 import type { SupabaseConfig } from "../SupabaseConfig";
 import type { SupabaseConnectionState } from "../SupabaseConnectionStatus";
 import type { SupabaseEnvironment } from "../SupabaseEnvironment";
@@ -57,6 +58,7 @@ export interface RunProductionSafetyGateInput {
   audit: ProductionSafetyAuditSnapshot;
   edge: StagingValidationEdgeSnapshot;
   environment: SupabaseEnvironment;
+  platform?: EnvironmentGateSnapshot;
 }
 
 function check(
@@ -128,6 +130,16 @@ export function resolveProductionSafetyStatus(
   }
 
   const actionable = checks.filter((item) => item.outcome !== "skip");
+  const devProductionCheck = byId("platform_environment_dev_not_production_ready");
+  const actionableExceptDev = actionable.filter(
+    (item) => item.id !== "platform_environment_dev_not_production_ready",
+  );
+  const allCorePass = actionableExceptDev.every((item) => item.outcome === "pass");
+
+  if (allCorePass && devProductionCheck?.outcome === "warn") {
+    return "ready_for_staging";
+  }
+
   const allPass = actionable.every((item) => item.outcome === "pass");
 
   if (allPass) {
@@ -209,6 +221,25 @@ export function buildProductionSafetyNextSteps(
       case "audit_ingest_no_critical_errors":
         steps.push("Corrija auth/profile/Edge Function antes de produção.");
         break;
+      case "platform_environment_declared":
+        steps.push("Defina NEXT_PUBLIC_DOS_ENVIRONMENT no deploy (development/staging/production).");
+        break;
+      case "platform_environment_mocks_disabled":
+      case "platform_environment_mock_role_locked":
+        steps.push("Desligue mocks — docs/architecture/environment-separation.md.");
+        break;
+      case "platform_environment_auth_profile_required":
+        steps.push("Complete handoff com operator_profiles real.");
+        break;
+      case "platform_environment_edge_function_required":
+        steps.push("Configure audit writeMode edge_function para staging/production.");
+        break;
+      case "platform_environment_incompatible":
+        steps.push("Corrija incompatibilidades de ambiente antes de promover.");
+        break;
+      case "platform_environment_dev_not_production_ready":
+        steps.push("Development não é elegível para revisão de produção.");
+        break;
       default:
         break;
     }
@@ -228,10 +259,147 @@ export function buildProductionSafetyNextSteps(
   return [...new Set(steps)];
 }
 
+function appendPlatformEnvironmentChecks(
+  checks: ProductionSafetyCheck[],
+  platform: EnvironmentGateSnapshot | undefined,
+  auth: ProductionSafetyAuthSnapshot,
+  audit: ProductionSafetyAuditSnapshot,
+  edge: StagingValidationEdgeSnapshot,
+): void {
+  const docPath = "docs/architecture/environment-separation.md";
+
+  if (!platform) {
+    for (const id of [
+      "platform_environment_declared",
+      "platform_environment_mocks_disabled",
+      "platform_environment_mock_role_locked",
+      "platform_environment_auth_profile_required",
+      "platform_environment_edge_function_required",
+      "platform_environment_incompatible",
+      "platform_environment_dev_not_production_ready",
+    ] as ProductionSafetyCheckId[]) {
+      checks.push(check(id, "skip", "Snapshot de ambiente indisponível."));
+    }
+    return;
+  }
+
+  checks.push(
+    check(
+      "platform_environment_declared",
+      platform.declaredExplicitly || platform.name === "development" ? "pass" : "warn",
+      platform.declaredExplicitly
+        ? `Ambiente ${platform.name} declarado explicitamente.`
+        : "NEXT_PUBLIC_DOS_ENVIRONMENT ausente — default development aplicado.",
+      { docPath },
+    ),
+  );
+
+  if (platform.name === "development") {
+    checks.push(
+      check(
+        "platform_environment_mocks_disabled",
+        "skip",
+        "Development permite mocks operacionais.",
+      ),
+    );
+    checks.push(
+      check(
+        "platform_environment_mock_role_locked",
+        "skip",
+        "Development permite troca de mock role.",
+      ),
+    );
+    checks.push(
+      check(
+        "platform_environment_auth_profile_required",
+        "skip",
+        "Auth profile opcional em development.",
+      ),
+    );
+    checks.push(
+      check(
+        "platform_environment_edge_function_required",
+        "skip",
+        "edge_function opcional em development.",
+      ),
+    );
+    checks.push(
+      check(
+        "platform_environment_dev_not_production_ready",
+        "warn",
+        "Development — não promover a revisão de produção.",
+        { docPath },
+      ),
+    );
+  } else {
+    const mocksActive = auth.isUsingMockOperator;
+    checks.push(
+      check(
+        "platform_environment_mocks_disabled",
+        mocksActive ? "fail" : "pass",
+        mocksActive
+          ? "Operador mock ativo — ambiente exige auth real."
+          : `Mocks desligados em ${platform.name}.`,
+        { blocking: mocksActive, docPath },
+      ),
+    );
+    checks.push(
+      check(
+        "platform_environment_mock_role_locked",
+        auth.mockRoleChangeAllowed ? "fail" : "pass",
+        auth.mockRoleChangeAllowed
+          ? "Troca livre de mock role permitida indevidamente."
+          : "Troca de mock role bloqueada.",
+        { blocking: auth.mockRoleChangeAllowed, docPath },
+      ),
+    );
+    const profileOk = auth.hasProfile && auth.operatorSource === "auth_profile";
+    checks.push(
+      check(
+        "platform_environment_auth_profile_required",
+        profileOk ? "pass" : "fail",
+        profileOk
+          ? "Auth profile real ativo."
+          : "operator_profiles real obrigatório neste ambiente.",
+        { blocking: !profileOk, docPath },
+      ),
+    );
+    const writeMode = audit.supabaseWriteMode ?? edge.writeMode;
+    checks.push(
+      check(
+        "platform_environment_edge_function_required",
+        writeMode === "edge_function" ? "pass" : "fail",
+        writeMode === "edge_function"
+          ? "Audit writeMode edge_function confirmado."
+          : `writeMode ${writeMode} — edge_function obrigatório em ${platform.name}.`,
+        { blocking: writeMode !== "edge_function", docPath },
+      ),
+    );
+    checks.push(
+      check(
+        "platform_environment_dev_not_production_ready",
+        "pass",
+        `${platform.name} elegível para revisão (sujeito aos demais checks).`,
+      ),
+    );
+  }
+
+  checks.push(
+    check(
+      "platform_environment_incompatible",
+      platform.incompatible ? "fail" : "pass",
+      platform.incompatible
+        ? "Configuração runtime incompatível com políticas do ambiente."
+        : "Configuração compatível com políticas do ambiente.",
+      { blocking: platform.incompatible, docPath },
+    ),
+  );
+}
+
 export async function runProductionSafetyGate(
   input: RunProductionSafetyGateInput,
 ): Promise<ProductionSafetyReport> {
-  const { config, client, auth, audit, edge, environment } = input;
+  const { config, client, auth, audit, edge, environment, platform } = input;
   const checks: ProductionSafetyCheck[] = [];
 
   // --- Supabase configurado ---
@@ -277,6 +445,8 @@ export async function runProductionSafetyGate(
         },
       ),
     );
+
+    appendPlatformEnvironmentChecks(checks, platform, auth, audit, edge);
 
     const status = resolveProductionSafetyStatus(checks, config);
     const { alertChecks } = partitionProductionSafetyChecks(checks);
@@ -789,6 +959,8 @@ export async function runProductionSafetyGate(
       ),
     );
   }
+
+  appendPlatformEnvironmentChecks(checks, platform, auth, audit, edge);
 
   const status = resolveProductionSafetyStatus(checks, config);
   const { alertChecks } = partitionProductionSafetyChecks(checks);

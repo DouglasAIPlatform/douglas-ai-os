@@ -1,6 +1,11 @@
 "use client";
 
 import {
+  resolveEnvironmentConfig,
+  toEnvironmentGateSnapshot,
+  validateEnvironmentConfig,
+} from "@douglas/environment";
+import {
   DEFAULT_AUDIT_EDGE_FUNCTION_NAME,
   DEFAULT_SUPABASE_AUDIT_WRITE_MODE,
   useAudit,
@@ -30,12 +35,24 @@ export function useProductionSafetyGate() {
     setIsEvaluating(true);
     setEvaluationError(null);
     try {
+      const envConfig = resolveEnvironmentConfig();
+      const envValidation = validateEnvironmentConfig(envConfig, {
+        supabaseConfigured: config.isConfigured,
+        isUsingMockOperator: bridge.isUsingMockOperator,
+        mockRoleChangeAllowed,
+        hasAuthProfile: authSession.profile !== null,
+        userAuthenticated: authSession.status === "authenticated",
+        auditWriteMode: auditSupabaseConfig.writeMode ?? null,
+      });
+      const platform = toEnvironmentGateSnapshot(envValidation);
+
       const nextReport = await runProductionSafetyGate({
         config,
         client,
         connection: DEFAULT_SUPABASE_CONNECTION_STATE,
         healthCheckOptions: supabaseHealthCheckOptions,
         environment: resolveSupabaseEnvironment(),
+        platform,
         auth: {
           status: authSession.status,
           mode: authSession.mode,
