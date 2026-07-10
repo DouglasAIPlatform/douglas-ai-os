@@ -1,8 +1,10 @@
 # Staging & Production Environments — Douglas AI Platform
 
-> Status: Foundation v1.0  
-> Sprint: 5.39  
+> Status: Foundation v1.1  
+> Sprint: 5.39 / **5.41**  
 > Escopo: operação segura de ambientes staging e production.
+
+**VERCEL_ENV** (`preview` / `production`) é hint de deploy — **não substitui** `NEXT_PUBLIC_DOS_ENVIRONMENT`. Divergências geram alertas no widget e no Production Safety Gate. Detalhes: [environment-resolution.md](../architecture/environment-resolution.md).
 
 ## Development vs Staging vs Production
 

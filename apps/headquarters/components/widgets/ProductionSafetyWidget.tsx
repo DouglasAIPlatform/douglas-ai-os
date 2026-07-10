@@ -6,8 +6,10 @@ import {
   SUPABASE_ENVIRONMENT_LABELS,
   type ProductionSafetyStatus,
 } from "@douglas/supabase";
+import { OPERATOR_ROLE_LABELS, roleHasOwnerExclusivePermission } from "@douglas/security";
 import { StatusBadge, type StatusBadgeVariant } from "@douglas/ui";
 import { useProductionSafetyGate } from "@/features/platform-supabase/production-safety";
+import { useAuthOperatorBridge } from "@/features/platform-auth/useAuthOperatorBridge";
 import type { WidgetStateProps } from "./shared/WidgetFrame";
 import { WidgetFrame } from "./shared/WidgetFrame";
 
@@ -60,6 +62,14 @@ export function ProductionSafetyWidget({
 }: ProductionSafetyWidgetProps) {
   const { report, isEvaluating, evaluationError, refreshGate } =
     useProductionSafetyGate();
+  const { bridge } = useAuthOperatorBridge();
+
+  const roleTier =
+    bridge.effectiveRole === "admin"
+      ? "Admin operacional"
+      : roleHasOwnerExclusivePermission(bridge.effectiveRole)
+        ? "Owner (exclusivo)"
+        : OPERATOR_ROLE_LABELS[bridge.effectiveRole];
 
   const isLoading = externalLoading ?? isEvaluating;
   const error = externalError ?? evaluationError;
@@ -98,6 +108,10 @@ export function ProductionSafetyWidget({
               variant={statusVariant(report.status)}
             />
             <StatusBadge label={environmentLabel} variant="neutral" />
+            <StatusBadge label={roleTier} variant="neutral" />
+            {bridge.isBlockedByProfileStatus ? (
+              <StatusBadge label="Profile bloqueado" variant="development" />
+            ) : null}
             <span className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
               {PRODUCTION_SAFETY_STATUS_DESCRIPTIONS[report.status]}
             </span>

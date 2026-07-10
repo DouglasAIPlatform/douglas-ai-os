@@ -1,5 +1,6 @@
 import { buildEnvironmentConfig, type EnvironmentConfig } from "./EnvironmentConfig";
 import { getEnvironmentProfile } from "./EnvironmentProfile";
+import { resolveCanonicalEnvironment } from "./CanonicalEnvironmentResolver";
 import {
   isPlatformEnvironment,
   PLATFORM_ENVIRONMENT_VAR,
@@ -19,31 +20,31 @@ export interface ResolveEnvironmentConfigOptions {
   env?: NodeJS.ProcessEnv;
 }
 
-/** Resolve ambiente efetivo — default seguro: development. */
+/** Resolve ambiente efetivo — delega ao resolver canônico. */
 export function resolvePlatformEnvironment(
   options: ResolveEnvironmentConfigOptions = {},
 ): PlatformEnvironment {
-  return resolveEnvironmentConfig(options).name;
+  return resolveCanonicalEnvironment(options).effectiveEnvironment;
 }
 
 export function resolveEnvironmentConfig(
   options: ResolveEnvironmentConfigOptions = {},
 ): EnvironmentConfig {
   const env = options.env ?? process.env;
+  const resolution = resolveCanonicalEnvironment({ env });
   const raw = readRawEnvironmentValue(env);
-  const declaredExplicitly = raw !== null;
 
   if (raw && isPlatformEnvironment(raw)) {
     return buildEnvironmentConfig({
       name: raw,
-      declaredExplicitly,
+      declaredExplicitly: true,
       rawEnvironmentValue: raw,
     });
   }
 
   return buildEnvironmentConfig({
-    name: DEFAULT_PLATFORM_ENVIRONMENT,
-    declaredExplicitly,
+    name: resolution.effectiveEnvironment ?? DEFAULT_PLATFORM_ENVIRONMENT,
+    declaredExplicitly: resolution.declaredExplicitly,
     rawEnvironmentValue: raw,
   });
 }

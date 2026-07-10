@@ -24,9 +24,11 @@ export {
 
 export {
   ROLE_PERMISSIONS,
+  OWNER_EXCLUSIVE_PERMISSIONS,
   canExecuteRuntimeActions,
   canViewPlatform,
   getRolePermissions,
+  roleHasOwnerExclusivePermission,
   roleHasPermission,
 } from "./Permission";
 
@@ -66,9 +68,44 @@ export { OperatorProvider, type OperatorProviderProps } from "./OperatorProvider
 export { useOperator } from "./useOperator";
 export { isMockRoleChangeAllowed, resolveMockRoleChangeAllowed } from "./isMockRoleChangeAllowed";
 
+export type { ServerPermission } from "./server-authorization/ServerPermission";
+export { SERVER_PERMISSIONS, isServerPermission } from "./server-authorization/ServerPermission";
+
+export type { ServerAuthorizationContext } from "./server-authorization/ServerAuthorizationContext";
+
+export type {
+  ServerAuthorizationDecision,
+  ServerAuthorizationOutcome,
+} from "./server-authorization/ServerAuthorizationDecision";
+export {
+  allowServerAuthorization,
+  denyServerAuthorization,
+} from "./server-authorization/ServerAuthorizationDecision";
+
+export type { ServerAuthorizationReason } from "./server-authorization/ServerAuthorizationReason";
+export { SERVER_AUTHORIZATION_REASON_LABELS } from "./server-authorization/ServerAuthorizationReason";
+
+export type { OperatorAuthorizationSnapshot } from "./server-authorization/OperatorAuthorizationSnapshot";
+
+export {
+  SERVER_ROLE_PERMISSIONS,
+  serverRoleHasPermission,
+  getServerRolePermissions,
+  canIngestAuditRemotely,
+  assertServerCatalogAlignedWithClient,
+  EXPECTED_SQL_PERMISSION_SEED,
+} from "./server-authorization/ServerPermissionCatalog";
+
+export {
+  buildOperatorAuthorizationSnapshot,
+  evaluateServerPermission,
+  evaluateAuditIngestServerAuthorization,
+  toServerAuthorizationContext,
+  type EvaluateServerAuthorizationInput,
+} from "./server-authorization/ServerAuthorizationEvaluator";
+
 export {
   RBAC_PERMISSION_MATRIX,
-  OWNER_EXCLUSIVE_PERMISSIONS,
   isRoleAllowedForCapability,
   matrixEntryForCapability,
   securedActionsFromMatrix,

@@ -9,6 +9,7 @@ import {
 import {
   createHandoffEventDeduplicator,
   createHandoffStateSnapshot,
+  normalizeHandoffState,
   resolveEffectiveOperator,
   useAuthSession,
   type HandoffRelevantTransition,
@@ -27,6 +28,8 @@ function buildHandoffPayload(
   userId?: string,
   message?: string,
 ): AuthOperatorHandoffEventPayload {
+  const state = normalizeHandoffState(resolution.handoffState);
+
   return {
     handoffState: resolution.handoffState,
     operatorSource: resolution.operatorSource,
@@ -35,13 +38,17 @@ function buildHandoffPayload(
     operatorRole: resolution.effectiveRole,
     message:
       message ??
-      (resolution.handoffState === "authenticated_without_profile"
+      (state === "profile_missing"
         ? "Sessão autenticada sem operator_profiles — fallback mock ativo"
-        : resolution.handoffState === "profile_error"
+        : state === "profile_error"
           ? "Erro de auth/profile — fallback mock ativo"
-          : resolution.handoffState === "authenticated_with_profile"
-            ? "Operador efetivo derivado do operator profile"
-            : undefined),
+          : state === "authenticated_with_active_profile"
+            ? "Operador efetivo derivado do operator profile ativo"
+            : state === "authenticated_with_inactive_profile"
+              ? "Profile inativo — fallback mock em development"
+              : state === "blocked_by_profile_status"
+                ? "Profile inativo — operador bloqueado"
+                : undefined),
   };
 }
 

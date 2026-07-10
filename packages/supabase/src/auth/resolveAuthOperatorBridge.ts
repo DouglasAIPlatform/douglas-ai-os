@@ -21,5 +21,8 @@ export function resolveAuthOperatorBridge(
     operatorSource: resolution.operatorSource,
     authProfileRole: resolution.authProfileRole,
     showAuthMockWarning: resolution.showAuthMockWarning,
+    showProfileInactiveWarning: resolution.showProfileInactiveWarning,
+    isBlockedByProfileStatus: resolution.isBlockedByProfileStatus,
+    profileStatus: resolution.profileStatus,
   };
 }

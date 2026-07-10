@@ -1,20 +1,12 @@
 import type { PlatformOperatorRole, AuthorizedOperator } from "./AuthorizedOperator.ts";
 import type { AuditAuthorizationFailure } from "./AuditAuthorizationResult.ts";
 import { authorizationFailure } from "./AuditAuthorizationResult.ts";
+import { canIngestAuditRemotely } from "./ServerPermissionCatalog.ts";
 
 /**
- * Roles permitidas para ingest remoto.
- *
- * viewer: bloqueado nesta sprint — não há forma segura de distinguir
- * ações próprias não-administrativas sem acoplar regras de negócio frágeis
- * ao payload do browser.
+ * Autorização server-side para ingest — deriva role do profile, não do payload.
+ * Viewer bloqueado (somente platform:view — sem runtime:refresh).
  */
-const INGEST_ALLOWED_ROLES = new Set<PlatformOperatorRole>([
-  "owner",
-  "admin",
-  "operator",
-]);
-
 export function evaluateOperatorAuthorization(
   operator: AuthorizedOperator,
 ): AuditAuthorizationFailure | null {
@@ -26,10 +18,10 @@ export function evaluateOperatorAuthorization(
     );
   }
 
-  if (!INGEST_ALLOWED_ROLES.has(operator.role)) {
+  if (!canIngestAuditRemotely(operator.role as PlatformOperatorRole)) {
     return authorizationFailure(
       "role_not_allowed",
-      "Role não autorizada para ingest remoto de audit",
+      "Role não autorizada para ingest remoto de audit (catálogo server-side)",
       403,
     );
   }

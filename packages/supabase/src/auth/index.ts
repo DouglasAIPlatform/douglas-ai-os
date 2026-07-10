@@ -36,9 +36,14 @@ export {
 export { mapOperatorProfileRow } from "./mapOperatorProfile";
 export { mapAuthProfileToOperator, type MappedOperator } from "./OperatorProfileMapper";
 export {
+  allowsInactiveProfileMockFallback,
+  isActiveOperatorProfile,
+  isBlockedByProfileStatus,
+  normalizeHandoffState,
   resolveHandoffState,
   resolveOperatorRoleSource,
   shouldShowAuthMockWarning,
+  shouldShowProfileInactiveWarning,
   shouldUseMockOperator,
 } from "./OperatorFallbackPolicy";
 export {

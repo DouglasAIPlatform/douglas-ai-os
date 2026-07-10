@@ -16,15 +16,16 @@ flowchart TD
   B -->|Sim| D{Sessão autenticada?}
   D -->|Não| E[mock_operator]
   D -->|Sim| F{operator_profiles existe?}
-  F -->|Sim| G[authenticated_with_profile]
-  F -->|Não| H[authenticated_without_profile → fallback mock]
-  G --> I[OperatorProfileMapper]
-  I --> J[operatorOverride → OperatorProvider]
-  H --> K[Mock operator + aviso UI]
-  C --> K
-  E --> K
-  J --> L[PermissionGuard / SecurityLayer]
-  K --> L
+  F -->|Sim| G{status active?}
+  G -->|Sim| H[authenticated_with_active_profile]
+  G -->|Inativo + dev| I[authenticated_with_inactive_profile]
+  G -->|Inativo + staging/prod| J[blocked_by_profile_status]
+  F -->|Não| K[profile_missing → fallback mock]
+  H --> L[OperatorProfileMapper]
+  L --> M[operatorOverride → OperatorProvider]
+  I --> N[Mock fallback + aviso profile inativo]
+  J --> O[Viewer forçado — bloqueado]
+  K --> N
 ```
 
 ## Estados de handoff
@@ -33,9 +34,13 @@ flowchart TD
 |--------|----------|--------------|---------------|
 | `not_configured` | Sem env Supabase | Mock | `mock` |
 | `mock_operator` | Supabase OK, sem sessão | Mock | `mock` |
-| `authenticated_without_profile` | Login OK, sem row em `operator_profiles` | Mock (fallback) | `fallback` |
-| `authenticated_with_profile` | Login OK + profile | Profile auth | `auth_profile` |
+| `profile_missing` | Login OK, sem row em `operator_profiles` | Mock (fallback) | `fallback` |
+| `authenticated_with_active_profile` | Login OK + profile `active` | Profile auth | `auth_profile` |
+| `authenticated_with_inactive_profile` | Profile inativo + development | Mock (fallback) | `fallback` |
+| `blocked_by_profile_status` | Profile inativo + staging/production | Viewer forçado | `blocked` |
 | `profile_error` | Erro de auth/sessão | Mock (fallback) | `fallback` |
+
+Ver também: `docs/security/inactive-profile-guard.md`, `docs/security/owner-admin-separation.md`.
 
 ## Módulos
 
@@ -53,7 +58,7 @@ flowchart TD
 | Mudança | Descrição |
 |---------|-----------|
 | `OperatorProvider.operatorOverride` | Override opcional do operador mock |
-| `OperatorProvider.operatorSource` | `mock` \| `auth_profile` \| `fallback` |
+| `OperatorProvider.operatorSource` | `mock` \| `auth_profile` \| `fallback` \| `blocked` |
 | `mockRoleChangeAllowed` | `false` em `NODE_ENV=production` |
 | `isMockRoleChangeAllowed()` | Helper de ambiente |
 

@@ -10,6 +10,58 @@ export {
   isPlatformEnvironment,
 } from "./PlatformEnvironment";
 
+export type { ReleaseChannel } from "./ReleaseChannel";
+export {
+  RELEASE_CHANNELS,
+  RELEASE_CHANNEL_LABELS,
+  isReleaseChannel,
+  toReleaseChannel,
+} from "./ReleaseChannel";
+
+export type { EnvironmentSource, EnvironmentSourceRole } from "./EnvironmentSource";
+export {
+  ENVIRONMENT_SOURCE_LABELS,
+  SERVER_ENVIRONMENT_VAR,
+} from "./EnvironmentSource";
+
+export type { EnvironmentMismatch, EnvironmentMismatchSeverity } from "./EnvironmentMismatch";
+export { isCriticalMismatch } from "./EnvironmentMismatch";
+
+export type {
+  DetectedEnvironmentSource,
+  EnvironmentResolution,
+} from "./EnvironmentResolution";
+
+export type { EnvironmentCompatibilityReport } from "./EnvironmentCompatibilityReport";
+export { buildEnvironmentCompatibilityReport } from "./EnvironmentCompatibilityReport";
+
+export {
+  CanonicalEnvironmentResolver,
+  resolveCanonicalEnvironment,
+  type CanonicalEnvironmentResolverOptions,
+} from "./CanonicalEnvironmentResolver";
+
+export {
+  coreEnvironmentToPlatform,
+  platformToCoreEnvironment,
+  isCoreEnvironmentName,
+} from "./adapters/CoreEnvironmentAdapter";
+
+export {
+  readVercelEnv,
+  vercelEnvToPlatformHint,
+  isVercelPreview,
+  isVercelProduction,
+  type VercelEnvValue,
+} from "./adapters/VercelEnvAdapter";
+
+export {
+  platformToLegacySupabaseEnvironment,
+  legacySupabaseEnvironmentToPlatformHint,
+  legacySupabaseEnvironmentLabel,
+  type LegacySupabaseEnvironment,
+} from "./adapters/SupabaseEnvironmentAdapter";
+
 export type { EnvironmentProfile } from "./EnvironmentProfile";
 export {
   ENVIRONMENT_PROFILES,
@@ -48,6 +100,7 @@ export type {
   EnvironmentValidationSeverity,
   EnvironmentStatusSnapshot,
   EnvironmentGateSnapshot,
+  EnvironmentSourceSnapshot,
 } from "./EnvironmentValidationResult";
 export {
   buildEnvironmentStatusSnapshot,
@@ -57,7 +110,7 @@ export {
 
 export { Environment, type EnvironmentConfig as CoreEnvironmentConfig } from "@douglas/core";
 
-/** Facade alinhada ao @douglas/core — evita duplicar defaults de API URL. */
+/** Facade alinhada ao resolver canônico — evita defaults divergentes do core. */
 export class PlatformEnvironmentFacade {
   private readonly core: Environment;
 
@@ -72,4 +125,11 @@ export class PlatformEnvironmentFacade {
   getConfig() {
     return resolveEnvironmentConfig();
   }
+}
+
+/** Cria @douglas/core Environment delegando ao resolver canônico. */
+export function createCoreEnvironmentFromCanonical(
+  options?: import("./EnvironmentConfigResolver").ResolveEnvironmentConfigOptions,
+): Environment {
+  return new Environment(resolvePlatformEnvironment(options));
 }

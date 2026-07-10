@@ -1,6 +1,7 @@
 import type { HandoffEventTopic } from "./HandoffEventKey";
 import type { HandoffStateSnapshot } from "./HandoffStateSnapshot";
 import { handoffSnapshotsEqual } from "./HandoffStateSnapshot";
+import { normalizeHandoffState } from "../OperatorFallbackPolicy";
 
 export type HandoffTransitionReason =
   | "handoff_state_changed"
@@ -31,7 +32,7 @@ function isProfileRoleChange(
   current: HandoffStateSnapshot,
 ): boolean {
   return (
-    current.handoffState === "authenticated_with_profile" &&
+    normalizeHandoffState(current.handoffState) === "authenticated_with_active_profile" &&
     previous.authProfileRole !== current.authProfileRole &&
     current.authProfileRole !== null
   );
@@ -81,6 +82,8 @@ export function classifyHandoffTransition(
 
 function buildTransitionMessage(transition: HandoffTransition): string | undefined {
   const { previous, current, reasons } = transition;
+  const currentState = normalizeHandoffState(current.handoffState);
+  const previousState = normalizeHandoffState(previous.handoffState);
 
   if (reasons.includes("profile_role_changed")) {
     return `Role do profile alterada (${previous.authProfileRole ?? "—"} → ${current.authProfileRole ?? "—"})`;
@@ -90,26 +93,31 @@ function buildTransitionMessage(transition: HandoffTransition): string | undefin
     return "Usuário autenticado alterado — handoff reavaliado";
   }
 
-  if (previous.handoffState === "mock_operator" && current.handoffState === "authenticated_with_profile") {
-    return "Operador efetivo derivado do operator profile";
+  if (previousState === "mock_operator" && currentState === "authenticated_with_active_profile") {
+    return "Operador efetivo derivado do operator profile ativo";
+  }
+
+  if (previousState === "profile_missing" && currentState === "authenticated_with_active_profile") {
+    return "Profile ativo encontrado — RBAC migrado para auth profile";
   }
 
   if (
-    previous.handoffState === "authenticated_without_profile" &&
-    current.handoffState === "authenticated_with_profile"
-  ) {
-    return "Profile encontrado — RBAC migrado para auth profile";
-  }
-
-  if (
-    previous.handoffState === "authenticated_with_profile" &&
+    previousState === "authenticated_with_active_profile" &&
     current.handoffState === "profile_error"
   ) {
     return "Erro de auth/profile — fallback mock ativo";
   }
 
-  if (current.handoffState === "authenticated_without_profile") {
+  if (currentState === "profile_missing") {
     return "Sessão autenticada sem operator_profiles — fallback mock ativo";
+  }
+
+  if (currentState === "authenticated_with_inactive_profile") {
+    return "Profile inativo — fallback mock em development (RBAC do profile bloqueado)";
+  }
+
+  if (currentState === "blocked_by_profile_status") {
+    return "Profile inativo — operador bloqueado (staging/production)";
   }
 
   if (current.handoffState === "profile_error") {
@@ -124,14 +132,18 @@ export function resolveHandoffEventTopics(
   transition: HandoffTransition,
 ): HandoffEventTopic[] {
   const topics: HandoffEventTopic[] = ["auth:operator:handoff_started"];
-  const state = transition.current.handoffState;
+  const state = normalizeHandoffState(transition.current.handoffState);
 
   switch (state) {
-    case "authenticated_with_profile":
+    case "authenticated_with_active_profile":
       topics.push("auth:operator:handoff_completed");
       break;
-    case "authenticated_without_profile":
+    case "profile_missing":
+    case "authenticated_with_inactive_profile":
       topics.push("auth:operator:handoff_fallback");
+      break;
+    case "blocked_by_profile_status":
+      topics.push("auth:operator:handoff_failed");
       break;
     case "profile_error":
       topics.push("auth:operator:handoff_failed");

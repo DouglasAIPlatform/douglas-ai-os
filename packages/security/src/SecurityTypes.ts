@@ -18,7 +18,11 @@ export type Permission =
   | "runtime:health_check"
   | "runtime:pause"
   | "runtime:resume"
-  | "runtime:restart";
+  | "runtime:restart"
+  | "security:manage_roles"
+  | "security:manage_owners"
+  | "release:approve_production"
+  | "platform:critical_configuration";
 
 export interface Operator {
   id: string;
@@ -102,6 +106,10 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "runtime:pause": "Pausar módulo",
   "runtime:resume": "Retomar módulo",
   "runtime:restart": "Reiniciar módulo",
+  "security:manage_roles": "Gerenciar roles operacionais",
+  "security:manage_owners": "Gerenciar owners",
+  "release:approve_production": "Aprovar release em produção",
+  "platform:critical_configuration": "Configuração crítica da plataforma",
 };
 
 export const SECURITY_EVENT_TOPICS = {

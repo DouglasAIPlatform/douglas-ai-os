@@ -1,8 +1,10 @@
 # Environment Separation — Douglas AI Platform
 
-> Status: Foundation v1.0  
-> Sprint: 5.39  
+> Status: Foundation v1.1  
+> Sprint: 5.39 / **5.41 (unificação canônica)**  
 > Escopo: camada central de ambientes para impedir configuração de dev em staging/produção.
+
+**Sprint 5.41:** `@douglas/environment` é a **fonte canônica única**. `@douglas/core/Environment` e `@douglas/supabase/SupabaseEnvironment` delegam via adapters. Ver [environment-resolution.md](./environment-resolution.md).
 
 ## Ambientes oficiais
 
@@ -23,7 +25,8 @@ Camada de resolução e políticas — **não duplica** `@douglas/core/Environme
 | `PlatformEnvironment` | Tipo + labels (`development` \| `staging` \| `production`) |
 | `EnvironmentProfile` | Políticas operacionais por ambiente |
 | `EnvironmentConfig` | Config resolvida (core + profile) |
-| `EnvironmentConfigResolver` | Lê `NEXT_PUBLIC_DOS_ENVIRONMENT` |
+| `EnvironmentConfigResolver` | Delega a `resolveCanonicalEnvironment` |
+| `CanonicalEnvironmentResolver` | Precedência DOS → server → VERCEL hint → default |
 | `EnvironmentSafetyPolicy` | Avalia compatibilidade runtime |
 | `EnvironmentValidationResult` | Issues + snapshot seguro para UI |
 

@@ -5,7 +5,7 @@ import type { ActionAuditLog } from "./ActionAuditLog";
 import type { Operator, OperatorRole } from "./SecurityTypes";
 import type { SecurityLayer } from "./SecurityLayer";
 
-export type OperatorRoleSource = "mock" | "auth_profile" | "fallback";
+export type OperatorRoleSource = "mock" | "auth_profile" | "fallback" | "blocked";
 
 export interface OperatorContextValue {
   operator: Operator;

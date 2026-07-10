@@ -25,6 +25,10 @@ const ALL_PERMISSIONS: Permission[] = [
   "runtime:pause",
   "runtime:resume",
   "runtime:restart",
+  "security:manage_roles",
+  "security:manage_owners",
+  "release:approve_production",
+  "platform:critical_configuration",
 ];
 
 function pass(caseDef: RBACVerificationCase, message: string): RBACVerificationResult {
@@ -127,29 +131,50 @@ function buildConfirmationCases(): RBACVerificationCase[] {
   return cases;
 }
 
-function buildOwnerAdminParityCases(): RBACVerificationCase[] {
+function buildOwnerAdminSeparationCases(): RBACVerificationCase[] {
   const cases: RBACVerificationCase[] = [];
 
-  for (const permission of ALL_PERMISSIONS) {
+  for (const permission of OWNER_EXCLUSIVE_PERMISSIONS) {
+    cases.push({
+      id: `owner-exclusive:${permission}`,
+      category: "permission",
+      description: `Owner possui permissão exclusiva ${permission}`,
+      role: "owner",
+      permission,
+      expectedAllowed: true,
+      tags: ["owner", "owner_exclusive"],
+    });
+    cases.push({
+      id: `admin-denied-exclusive:${permission}`,
+      category: "permission",
+      description: `Admin não possui permissão exclusiva ${permission}`,
+      role: "admin",
+      permission,
+      expectedAllowed: false,
+      tags: ["admin", "owner_exclusive", "negative"],
+    });
+  }
+
+  for (const permission of ALL_PERMISSIONS.filter((p) => !OWNER_EXCLUSIVE_PERMISSIONS.includes(p))) {
     const ownerHas = roleHasPermission("owner", permission);
     const adminHas = roleHasPermission("admin", permission);
     cases.push({
-      id: `owner-admin-parity:${permission}`,
+      id: `owner-admin-shared:${permission}`,
       category: "permission",
-      description: `Owner e admin possuem paridade em ${permission}`,
+      description: `Owner e admin compartilham ${permission}`,
       role: "owner",
       permission,
       expectedAllowed: ownerHas === adminHas,
-      tags: ["owner", "admin", "parity"],
+      tags: ["owner", "admin", "shared"],
     });
   }
 
   cases.push({
-    id: "owner-exclusive-permissions-empty",
+    id: "owner-exclusive-permissions-present",
     category: "permission",
-    description: "Nenhuma permissão exclusiva do owner além do catálogo compartilhado com admin",
+    description: "Owner possui permissões exclusivas além do admin",
     role: "owner",
-    expectedAllowed: OWNER_EXCLUSIVE_PERMISSIONS.length === 0,
+    expectedAllowed: OWNER_EXCLUSIVE_PERMISSIONS.length > 0,
     tags: ["owner", "admin"],
   });
 
@@ -238,7 +263,7 @@ export function buildRBACVerificationCases(): RBACVerificationCase[] {
     ...buildPermissionCases(),
     ...buildSecuredActionCases(),
     ...buildConfirmationCases(),
-    ...buildOwnerAdminParityCases(),
+    ...buildOwnerAdminSeparationCases(),
     ...buildMockRolePolicyCases(),
     ...buildCapabilityNegativeCases(),
   ];
@@ -247,14 +272,23 @@ export function buildRBACVerificationCases(): RBACVerificationCase[] {
 function evaluateCase(caseDef: RBACVerificationCase): RBACVerificationResult {
   const guard = createPermissionGuard();
 
-  if (caseDef.id === "owner-exclusive-permissions-empty") {
-    if (OWNER_EXCLUSIVE_PERMISSIONS.length === 0) {
-      return pass(caseDef, "Catálogo owner ≡ admin — sem permissões exclusivas.");
+  if (caseDef.id === "owner-exclusive-permissions-present") {
+    if (OWNER_EXCLUSIVE_PERMISSIONS.length > 0) {
+      return pass(
+        caseDef,
+        `${OWNER_EXCLUSIVE_PERMISSIONS.length} permissões exclusivas do owner definidas.`,
+      );
     }
-    return fail(
-      caseDef,
-      `Permissões exclusivas owner: ${OWNER_EXCLUSIVE_PERMISSIONS.join(", ")}`,
-    );
+    return fail(caseDef, "OWNER_EXCLUSIVE_PERMISSIONS está vazio — owner ≡ admin.");
+  }
+
+  if (caseDef.id.startsWith("owner-admin-shared:")) {
+    const adminHas = roleHasPermission("admin", caseDef.permission!);
+    const ownerHas = roleHasPermission("owner", caseDef.permission!);
+    if (ownerHas === adminHas) {
+      return pass(caseDef, "Permissão compartilhada owner/admin confirmada.");
+    }
+    return fail(caseDef, `owner=${ownerHas}, admin=${adminHas}`, { actualAllowed: ownerHas });
   }
 
   if (caseDef.category === "mock_role_policy") {
@@ -285,10 +319,10 @@ function evaluateCase(caseDef: RBACVerificationCase): RBACVerificationResult {
 
   if (caseDef.permission && !caseDef.action) {
     const allowed = roleHasPermission(caseDef.role, caseDef.permission);
-    if (caseDef.id.startsWith("owner-admin-parity:")) {
+    if (caseDef.id.startsWith("owner-admin-shared:")) {
       const adminHas = roleHasPermission("admin", caseDef.permission);
       if (allowed === adminHas) {
-        return pass(caseDef, "Paridade owner/admin confirmada.");
+        return pass(caseDef, "Permissão compartilhada owner/admin confirmada.");
       }
       return fail(caseDef, `owner=${allowed}, admin=${adminHas}`, { actualAllowed: allowed });
     }

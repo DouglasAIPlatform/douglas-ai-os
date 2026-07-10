@@ -68,15 +68,19 @@ export const DIAGNOSTICS_REPORT_EVENT_TOPICS = [
 
 export type DiagnosticsReportEventTopic = (typeof DIAGNOSTICS_REPORT_EVENT_TOPICS)[number];
 
-/** Auth → operator handoff lifecycle (Sprint 5.26). */
+/** Auth → operator handoff lifecycle (Sprint 5.26, evoluído 5.43). */
 export type AuthOperatorHandoffState =
   | "mock_operator"
-  | "authenticated_without_profile"
-  | "authenticated_with_profile"
+  | "not_configured"
   | "profile_error"
-  | "not_configured";
+  | "profile_missing"
+  | "authenticated_with_active_profile"
+  | "authenticated_with_inactive_profile"
+  | "blocked_by_profile_status"
+  | "authenticated_with_profile"
+  | "authenticated_without_profile";
 
-export type AuthOperatorRoleSource = "mock" | "auth_profile" | "fallback";
+export type AuthOperatorRoleSource = "mock" | "auth_profile" | "fallback" | "blocked";
 
 export interface AuthOperatorHandoffEventPayload {
   handoffState: AuthOperatorHandoffState;

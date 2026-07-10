@@ -1,13 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import type { AuthProfile, AuthSessionState, AuthUser } from "./AuthTypes";
 import { resolveEffectiveOperator } from "./EffectiveOperatorResolver";
 import {
+  allowsInactiveProfileMockFallback,
+  isActiveOperatorProfile,
   resolveHandoffState,
   resolveOperatorRoleSource,
   shouldUseMockOperator,
 } from "./OperatorFallbackPolicy";
 import { mapAuthProfileToOperator } from "./OperatorProfileMapper";
 import { createPermissionGuard } from "../../../security/src/PermissionGuard";
+import {
+  OWNER_EXCLUSIVE_PERMISSIONS,
+  roleHasOwnerExclusivePermission,
+  roleHasPermission,
+  ROLE_PERMISSIONS,
+} from "../../../security/src/Permission";
 import { MOCK_OPERATORS } from "../../../security/src/SecurityTypes";
 
 function sessionFixture(
@@ -46,8 +54,21 @@ function profileFixture(overrides: Partial<AuthProfile> = {}): AuthProfile {
 
 describe("Auth → Operator Handoff RBAC (@douglas/supabase)", () => {
   const guard = createPermissionGuard();
+  const previousDosEnv = process.env.NEXT_PUBLIC_DOS_ENVIRONMENT;
 
-  it("auth profile owner → effective operator owner", () => {
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_DOS_ENVIRONMENT = "development";
+  });
+
+  afterEach(() => {
+    if (previousDosEnv === undefined) {
+      delete process.env.NEXT_PUBLIC_DOS_ENVIRONMENT;
+    } else {
+      process.env.NEXT_PUBLIC_DOS_ENVIRONMENT = previousDosEnv;
+    }
+  });
+
+  it("auth profile owner → effective operator owner with active profile", () => {
     const session = sessionFixture({
       status: "authenticated",
       provider: "supabase",
@@ -57,17 +78,19 @@ describe("Auth → Operator Handoff RBAC (@douglas/supabase)", () => {
     });
 
     const resolution = resolveEffectiveOperator(session, "viewer");
-    expect(resolution.handoffState).toBe("authenticated_with_profile");
+    expect(resolution.handoffState).toBe("authenticated_with_active_profile");
     expect(resolution.effectiveRole).toBe("owner");
     expect(resolution.isUsingMockOperator).toBe(false);
     expect(resolution.operatorSource).toBe("auth_profile");
     expect(resolution.operatorOverride?.role).toBe("owner");
+    expect(resolution.profileStatus).toBe("active");
+    expect(roleHasOwnerExclusivePermission("owner")).toBe(true);
 
     const operator = resolution.operatorOverride ?? MOCK_OPERATORS.viewer;
     expect(guard.evaluate(operator, "pause_module").allowed).toBe(true);
   });
 
-  it("auth profile admin → effective operator admin", () => {
+  it("auth profile admin → effective operator admin without owner-exclusive permissions", () => {
     const session = sessionFixture({
       status: "authenticated",
       provider: "supabase",
@@ -79,6 +102,11 @@ describe("Auth → Operator Handoff RBAC (@douglas/supabase)", () => {
     const resolution = resolveEffectiveOperator(session, "viewer");
     expect(resolution.effectiveRole).toBe("admin");
     expect(resolution.operatorOverride?.role).toBe("admin");
+    expect(roleHasOwnerExclusivePermission("admin")).toBe(false);
+    for (const permission of OWNER_EXCLUSIVE_PERMISSIONS) {
+      expect(roleHasPermission("admin", permission)).toBe(false);
+      expect(roleHasPermission("owner", permission)).toBe(true);
+    }
     expect(guard.evaluate(resolution.operatorOverride!, "restart_module").allowed).toBe(true);
   });
 
@@ -92,7 +120,7 @@ describe("Auth → Operator Handoff RBAC (@douglas/supabase)", () => {
     });
 
     const resolution = resolveEffectiveOperator(session, "viewer");
-    expect(resolution.handoffState).toBe("authenticated_without_profile");
+    expect(resolution.handoffState).toBe("profile_missing");
     expect(resolution.isUsingMockOperator).toBe(true);
     expect(resolution.operatorSource).toBe("fallback");
     expect(resolution.effectiveRole).toBe("viewer");
@@ -119,7 +147,8 @@ describe("Auth → Operator Handoff RBAC (@douglas/supabase)", () => {
     expect(resolution.effectiveRole).toBe("admin");
   });
 
-  it("inactive profile still resolves auth profile on client (documented limitation)", () => {
+  it("inactive profile in development → fallback mock with warning, no authorized override", () => {
+    process.env.NEXT_PUBLIC_DOS_ENVIRONMENT = "development";
     const session = sessionFixture({
       status: "authenticated",
       provider: "supabase",
@@ -128,10 +157,36 @@ describe("Auth → Operator Handoff RBAC (@douglas/supabase)", () => {
       profile: profileFixture({ role: "admin", status: "suspended" }),
     });
 
+    expect(isActiveOperatorProfile(session.profile)).toBe(false);
+    expect(allowsInactiveProfileMockFallback()).toBe(true);
+
     const resolution = resolveEffectiveOperator(session, "viewer");
-    expect(resolution.handoffState).toBe("authenticated_with_profile");
-    expect(resolution.operatorOverride?.role).toBe("admin");
+    expect(resolution.handoffState).toBe("authenticated_with_inactive_profile");
+    expect(resolution.operatorOverride).toBeNull();
+    expect(resolution.isUsingMockOperator).toBe(true);
+    expect(resolution.showProfileInactiveWarning).toBe(true);
+    expect(resolution.effectiveRole).toBe("viewer");
+    expect(resolution.authProfileRole).toBe("admin");
+  });
+
+  it("inactive profile in staging/production → blocked with viewer enforcement", () => {
+    process.env.NEXT_PUBLIC_DOS_ENVIRONMENT = "staging";
+    const session = sessionFixture({
+      status: "authenticated",
+      provider: "supabase",
+      mode: "authenticated",
+      user: userFixture(),
+      profile: profileFixture({ role: "admin", status: "suspended" }),
+    });
+
+    const resolution = resolveEffectiveOperator(session, "owner");
+    expect(resolution.handoffState).toBe("blocked_by_profile_status");
+    expect(resolution.isBlockedByProfileStatus).toBe(true);
+    expect(resolution.operatorSource).toBe("blocked");
+    expect(resolution.effectiveRole).toBe("viewer");
+    expect(resolution.operatorOverride?.role).toBe("viewer");
     expect(resolution.isUsingMockOperator).toBe(false);
+    expect(guard.evaluate(resolution.operatorOverride!, "pause_module").allowed).toBe(false);
   });
 
   it("mock role does not override active auth profile", () => {
@@ -179,5 +234,10 @@ describe("Auth → Operator Handoff RBAC (@douglas/supabase)", () => {
     const operator = resolveEffectiveOperator(session, "admin").operatorOverride!;
     expect(guard.evaluate(operator, "refresh_module").allowed).toBe(false);
     expect(guard.canView(operator)).toBe(true);
+  });
+
+  it("owner has more permissions than admin in catalog", () => {
+    expect(ROLE_PERMISSIONS.owner.length).toBeGreaterThan(ROLE_PERMISSIONS.admin.length);
+    expect(OWNER_EXCLUSIVE_PERMISSIONS.length).toBe(4);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ROLE_PERMISSIONS } from "./Permission";
+import { ROLE_PERMISSIONS, roleHasOwnerExclusivePermission } from "./Permission";
 import { createPermissionGuard } from "./PermissionGuard";
 import { isMockRoleChangeAllowed } from "./isMockRoleChangeAllowed";
 import { MOCK_OPERATORS } from "./SecurityTypes";
@@ -34,8 +34,10 @@ describe("RBAC verification suite (@douglas/security)", () => {
     const guard = createPermissionGuard();
     const owner = MOCK_OPERATORS.owner;
 
-    it("has all catalog permissions", () => {
-      expect(ROLE_PERMISSIONS.owner).toHaveLength(6);
+    it("has all catalog permissions including owner-exclusive", () => {
+      expect(ROLE_PERMISSIONS.owner).toHaveLength(10);
+      expect(OWNER_EXCLUSIVE_PERMISSIONS).toHaveLength(4);
+      expect(roleHasOwnerExclusivePermission("owner")).toBe(true);
     });
 
     it("allows all secured runtime actions with confirmation on sensitive ones", () => {
@@ -53,9 +55,14 @@ describe("RBAC verification suite (@douglas/security)", () => {
     const guard = createPermissionGuard();
     const admin = MOCK_OPERATORS.admin;
 
-    it("matches owner permission set (no owner-exclusive permissions)", () => {
-      expect(ROLE_PERMISSIONS.admin).toEqual(ROLE_PERMISSIONS.owner);
-      expect(OWNER_EXCLUSIVE_PERMISSIONS).toEqual([]);
+    it("has operational admin permissions but not owner-exclusive", () => {
+      expect(ROLE_PERMISSIONS.admin).toHaveLength(6);
+      expect(ROLE_PERMISSIONS.admin).not.toEqual(ROLE_PERMISSIONS.owner);
+      expect(roleHasOwnerExclusivePermission("admin")).toBe(false);
+      for (const permission of OWNER_EXCLUSIVE_PERMISSIONS) {
+        expect(ROLE_PERMISSIONS.admin).not.toContain(permission);
+        expect(ROLE_PERMISSIONS.owner).toContain(permission);
+      }
     });
 
     it("allows administrative runtime actions", () => {
@@ -74,12 +81,13 @@ describe("RBAC verification suite (@douglas/security)", () => {
       expect(guard.evaluate(operator, "run_health_check").allowed).toBe(true);
     });
 
-    it("blocks administrative runtime actions", () => {
+    it("blocks administrative runtime actions and owner-exclusive permissions", () => {
       for (const action of ["pause_module", "resume_module", "restart_module"] as const) {
         const result = guard.evaluate(operator, action);
         expect(result.allowed).toBe(false);
         expect(result.blockedByPermission).toBe(true);
       }
+      expect(roleHasOwnerExclusivePermission("operator")).toBe(false);
     });
   });
 
@@ -119,7 +127,7 @@ describe("RBAC verification suite (@douglas/security)", () => {
     const cases = buildRBACVerificationCases();
     const ids = cases.map((item) => item.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(cases.length).toBeGreaterThanOrEqual(60);
+    expect(cases.length).toBeGreaterThanOrEqual(70);
   });
 
   it("formats report without throwing", () => {

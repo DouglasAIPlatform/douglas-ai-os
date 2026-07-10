@@ -7,8 +7,9 @@ import {
   AUTH_STATUS_LABELS,
   HANDOFF_TRANSITION_REASON_LABELS,
   OPERATOR_ROLE_SOURCE_LABELS,
+  normalizeHandoffState,
 } from "@douglas/supabase";
-import { OPERATOR_ROLE_LABELS } from "@douglas/security";
+import { OPERATOR_ROLE_LABELS, roleHasOwnerExclusivePermission } from "@douglas/security";
 import { StatusBadge, type StatusBadgeVariant } from "@douglas/ui";
 import Link from "next/link";
 import {
@@ -40,15 +41,31 @@ function statusVariant(
 function handoffVariant(
   handoffState: ReturnType<typeof useAuthOperatorBridge>["bridge"]["handoffState"],
 ): StatusBadgeVariant {
-  switch (handoffState) {
-    case "authenticated_with_profile":
+  const state = normalizeHandoffState(handoffState);
+  switch (state) {
+    case "authenticated_with_active_profile":
       return "available";
-    case "authenticated_without_profile":
+    case "blocked_by_profile_status":
+      return "development";
+    case "authenticated_with_inactive_profile":
+    case "profile_missing":
     case "profile_error":
       return "development";
     default:
       return "neutral";
   }
+}
+
+function roleTierLabel(
+  role: ReturnType<typeof useAuthOperatorBridge>["bridge"]["effectiveRole"],
+): string {
+  if (roleHasOwnerExclusivePermission(role)) {
+    return "Owner (exclusivo)";
+  }
+  if (role === "admin") {
+    return "Admin operacional";
+  }
+  return OPERATOR_ROLE_LABELS[role];
 }
 
 export function AuthStatusWidget({
@@ -57,6 +74,7 @@ export function AuthStatusWidget({
 }: AuthStatusWidgetProps) {
   const { authSession, bridge, operator, operatorSource } = useAuthOperatorBridge();
   const { lastRelevantTransition } = useHandoffEventBridge();
+  const normalizedHandoff = normalizeHandoffState(bridge.handoffState);
 
   const isLoading = externalLoading ?? authSession.isLoading;
   const error = externalError ?? authSession.error;
@@ -64,13 +82,15 @@ export function AuthStatusWidget({
   return (
     <WidgetFrame
       title="Auth → Operator Handoff"
-      description="Sessão Supabase + operador efetivo derivado de operator_profiles quando disponível"
+      description="Sessão Supabase + operador efetivo — sem expor e-mail, UID ou tokens"
       isLoading={isLoading}
       error={error}
       footer={
-        bridge.isUsingMockOperator
-          ? `RBAC efetivo: ${OPERATOR_ROLE_SOURCE_LABELS[operatorSource]} · auth: ${AUTH_STATUS_LABELS[authSession.status]}`
-          : `RBAC efetivo: ${OPERATOR_ROLE_SOURCE_LABELS[operatorSource]} · profile ativo`
+        bridge.isBlockedByProfileStatus
+          ? `RBAC bloqueado — profile ${bridge.profileStatus ?? "inativo"}`
+          : bridge.isUsingMockOperator
+            ? `RBAC efetivo: ${OPERATOR_ROLE_SOURCE_LABELS[operatorSource]} · auth: ${AUTH_STATUS_LABELS[authSession.status]}`
+            : `RBAC efetivo: ${OPERATOR_ROLE_SOURCE_LABELS[operatorSource]} · profile ativo`
       }
     >
       <div className="space-y-[var(--ds-space-4)]">
@@ -118,11 +138,8 @@ export function AuthStatusWidget({
                 Profile status
               </dt>
               <dd className="text-[length:var(--ds-font-size-sm)] text-[var(--ds-color-text-primary)]">
-                {authSession.profile
-                  ? `${authSession.profile.displayName} · ${authSession.profile.status}`
-                  : authSession.status === "authenticated"
-                    ? "Sem operator_profiles"
-                    : "—"}
+                {bridge.profileStatus ??
+                  (authSession.status === "authenticated" ? "Ausente" : "—")}
               </dd>
             </div>
             <div>
@@ -130,7 +147,7 @@ export function AuthStatusWidget({
                 Operador efetivo
               </dt>
               <dd className="text-[length:var(--ds-font-size-sm)] font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)]">
-                {operator.name} ({operator.id})
+                {operator.name}
               </dd>
             </div>
             <div>
@@ -138,7 +155,7 @@ export function AuthStatusWidget({
                 Role efetiva (RBAC)
               </dt>
               <dd className="text-[length:var(--ds-font-size-sm)] font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)]">
-                {OPERATOR_ROLE_LABELS[bridge.effectiveRole]}
+                {roleTierLabel(bridge.effectiveRole)}
               </dd>
             </div>
             <div>
@@ -149,24 +166,27 @@ export function AuthStatusWidget({
                 {OPERATOR_ROLE_SOURCE_LABELS[operatorSource]}
               </dd>
             </div>
-            <div className="sm:col-span-2">
-              <dt className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
-                Usuário autenticado
-              </dt>
-              <dd className="text-[length:var(--ds-font-size-sm)] text-[var(--ds-color-text-primary)]">
-                {authSession.user?.email ?? "—"}
-              </dd>
-            </div>
-            {bridge.authProfileRole ? (
+            {bridge.authProfileRole && bridge.authProfileRole !== bridge.effectiveRole ? (
               <div>
                 <dt className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
-                  Role do profile
+                  Role do profile (informativa)
                 </dt>
-                <dd className="text-[length:var(--ds-font-size-sm)] text-[var(--ds-color-text-primary)]">
-                  {OPERATOR_ROLE_LABELS[bridge.authProfileRole]}
+                <dd className="text-[length:var(--ds-font-size-sm)] text-[var(--ds-color-text-muted)]">
+                  {OPERATOR_ROLE_LABELS[bridge.authProfileRole]} — não aplicada
                 </dd>
               </div>
             ) : null}
+            <div>
+              <dt className="text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                Bloqueio por profile
+              </dt>
+              <dd>
+                <StatusBadge
+                  label={bridge.isBlockedByProfileStatus ? "Sim" : "Não"}
+                  variant={bridge.isBlockedByProfileStatus ? "development" : "available"}
+                />
+              </dd>
+            </div>
           </dl>
         </div>
 
@@ -225,10 +245,34 @@ export function AuthStatusWidget({
               <span className="font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)]">
                 Aviso handoff:
               </span>{" "}
-              sessão autenticada, mas RBAC ainda usa operador mock ({operator.id}). Crie um
-              registro em{" "}
+              sessão autenticada, mas RBAC ainda usa operador mock. Crie um registro em{" "}
               <code className="text-[length:var(--ds-font-size-xs)]">operator_profiles</code>{" "}
               para ativar permissões reais.
+            </p>
+          </div>
+        ) : null}
+
+        {bridge.showProfileInactiveWarning ? (
+          <div className="rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border-default)] bg-[var(--ds-color-surface)] p-[var(--ds-space-3)]">
+            <p className="text-[length:var(--ds-font-size-xs)] leading-[var(--ds-line-height-body)] text-[var(--ds-color-text-muted)]">
+              <span className="font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)]">
+                Profile inativo:
+              </span>{" "}
+              status{" "}
+              <span className="font-[var(--ds-font-weight-medium)]">{bridge.profileStatus}</span> —
+              RBAC do profile não autorizado. Fallback mock ativo apenas em development.
+            </p>
+          </div>
+        ) : null}
+
+        {bridge.isBlockedByProfileStatus ? (
+          <div className="rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border-default)] bg-[var(--ds-color-surface)] p-[var(--ds-space-3)]">
+            <p className="text-[length:var(--ds-font-size-xs)] leading-[var(--ds-line-height-body)] text-[var(--ds-color-text-muted)]">
+              <span className="font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)]">
+                Bloqueado:
+              </span>{" "}
+              profile inativo em ambiente sem mocks — operador efetivo limitado a viewer (
+              {normalizedHandoff}).
             </p>
           </div>
         ) : null}

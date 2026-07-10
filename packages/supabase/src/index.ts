@@ -110,6 +110,7 @@ export {
   mapAuthProfileToOperator,
   mapOperatorProfileRow,
   mapSupabaseUser,
+  normalizeHandoffState,
   requestOperatorProfileBootstrap,
   resolveAuthMode,
   resolveAuthOperatorBridge,

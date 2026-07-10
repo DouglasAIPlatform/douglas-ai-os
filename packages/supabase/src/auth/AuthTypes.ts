@@ -44,13 +44,19 @@ export interface AuthSessionState {
 /** Lifecycle of the auth → operator handoff bridge. */
 export type AuthOperatorHandoffState =
   | "mock_operator"
-  | "authenticated_without_profile"
-  | "authenticated_with_profile"
+  | "not_configured"
   | "profile_error"
-  | "not_configured";
+  | "profile_missing"
+  | "authenticated_with_active_profile"
+  | "authenticated_with_inactive_profile"
+  | "blocked_by_profile_status"
+  /** @deprecated Use authenticated_with_active_profile — mantido para compatibilidade de eventos legados. */
+  | "authenticated_with_profile"
+  /** @deprecated Use profile_missing — mantido para compatibilidade de eventos legados. */
+  | "authenticated_without_profile";
 
 /** Source of the effective operator role enforced by PermissionGuard. */
-export type OperatorRoleSource = "mock" | "auth_profile" | "fallback";
+export type OperatorRoleSource = "mock" | "auth_profile" | "fallback" | "blocked";
 
 export interface AuthOperatorBridgeResult {
   /** Resolved handoff lifecycle state. */
@@ -64,4 +70,10 @@ export interface AuthOperatorBridgeResult {
   authProfileRole: AuthRole | null;
   /** True when authenticated but still falling back to mock operator. */
   showAuthMockWarning: boolean;
+  /** True when profile exists but status !== active (development fallback). */
+  showProfileInactiveWarning: boolean;
+  /** True when inactive profile blocks authorization in staging/production. */
+  isBlockedByProfileStatus: boolean;
+  /** Status from operator_profiles when present. */
+  profileStatus: PlatformOperatorStatus | null;
 }

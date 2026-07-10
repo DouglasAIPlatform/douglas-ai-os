@@ -3,7 +3,11 @@ import {
   SENSITIVE_ACTIONS,
   type ActionPolicyContext,
 } from "../ActionPolicy";
-import { ROLE_PERMISSIONS, roleHasPermission } from "../Permission";
+import {
+  OWNER_EXCLUSIVE_PERMISSIONS,
+  ROLE_PERMISSIONS,
+  roleHasPermission,
+} from "../Permission";
 import type { OperatorRole, Permission, SecuredActionType } from "../SecurityTypes";
 
 /**
@@ -20,7 +24,11 @@ export type RBACCapabilityId =
   | "runtime_restart"
   | "execute_operational_runtime"
   | "execute_administrative_runtime"
-  | "confirm_sensitive_runtime_action";
+  | "confirm_sensitive_runtime_action"
+  | "manage_operational_roles"
+  | "manage_platform_owners"
+  | "approve_production_release"
+  | "critical_platform_configuration";
 
 export interface RBACMatrixEntry {
   capabilityId: RBACCapabilityId;
@@ -112,15 +120,30 @@ export const RBAC_PERMISSION_MATRIX: RBACMatrixEntry[] = [
       requiresConfirmation: true,
     },
   ),
+  buildEntry(
+    "manage_operational_roles",
+    "Gerenciar roles operacionais (owner exclusivo)",
+    "security:manage_roles",
+  ),
+  buildEntry(
+    "manage_platform_owners",
+    "Gerenciar owners da plataforma (owner exclusivo)",
+    "security:manage_owners",
+  ),
+  buildEntry(
+    "approve_production_release",
+    "Aprovar release em produção (owner exclusivo)",
+    "release:approve_production",
+  ),
+  buildEntry(
+    "critical_platform_configuration",
+    "Configuração crítica da plataforma (owner exclusivo)",
+    "platform:critical_configuration",
+  ),
 ];
 
-/** Permissões reservadas exclusivamente ao owner — vazio enquanto owner ≡ admin no catálogo. */
-export const OWNER_EXCLUSIVE_PERMISSIONS: Permission[] = ALL_ROLES.flatMap((role) =>
-  ROLE_PERMISSIONS[role].filter(
-    (permission) =>
-      roleHasPermission("owner", permission) && !roleHasPermission("admin", permission),
-  ),
-);
+/** Permissões reservadas exclusivamente ao owner — reexport do catálogo canônico. */
+export { OWNER_EXCLUSIVE_PERMISSIONS };
 
 export function matrixEntryForCapability(
   capabilityId: RBACCapabilityId,

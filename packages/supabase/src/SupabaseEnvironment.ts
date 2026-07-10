@@ -1,3 +1,8 @@
+import {
+  platformToLegacySupabaseEnvironment,
+  resolveCanonicalEnvironment,
+} from "@douglas/environment";
+
 export type SupabaseEnvironment = "local" | "preview" | "production" | "unknown";
 
 export const SUPABASE_ENVIRONMENT_LABELS: Record<SupabaseEnvironment, string> = {
@@ -7,13 +12,27 @@ export const SUPABASE_ENVIRONMENT_LABELS: Record<SupabaseEnvironment, string> = 
   unknown: "Desconhecido",
 };
 
-export function resolveSupabaseEnvironment(): SupabaseEnvironment {
-  const vercelEnv = process.env.VERCEL_ENV;
+/**
+ * Resolve ambiente Supabase legado — delega ao resolver canônico (@douglas/environment).
+ * Não usa VERCEL_ENV como fonte independente de verdade.
+ */
+export function resolveSupabaseEnvironment(
+  env: NodeJS.ProcessEnv = process.env,
+): SupabaseEnvironment {
+  const resolution = resolveCanonicalEnvironment({ env });
+  return platformToLegacySupabaseEnvironment(resolution, env);
+}
+
+/** @deprecated Use resolveCanonicalEnvironment via @douglas/environment */
+export function resolveSupabaseEnvironmentLegacy(
+  env: NodeJS.ProcessEnv = process.env,
+): SupabaseEnvironment {
+  const vercelEnv = env.VERCEL_ENV;
 
   if (vercelEnv === "production") return "production";
   if (vercelEnv === "preview") return "preview";
-  if (process.env.NODE_ENV === "development") return "local";
-  if (process.env.NODE_ENV === "production") return "production";
+  if (env.NODE_ENV === "development") return "local";
+  if (env.NODE_ENV === "production") return "production";
 
   return "unknown";
 }

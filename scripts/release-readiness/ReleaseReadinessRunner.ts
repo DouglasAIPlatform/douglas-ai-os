@@ -20,6 +20,17 @@ import {
   type ReleaseReadinessReport,
 } from "./ReleaseReadinessReport.ts";
 import {
+  checkServerRbacHelpersPresent,
+  checkServerRbacMigrationPresent,
+  checkServerRbacNoPermissiveAnon,
+  runServerRbacTests,
+} from "./ServerRbacChecks.ts";
+import {
+  checkInactiveProfileGuardPresent,
+  checkOwnerAdminSeparation,
+  runOwnerAdminHandoffTests,
+} from "./OwnerAdminSeparationChecks.ts";
+import {
   collectVersionTargets,
   loadReleaseManifest,
 } from "../release-versioning/VersionConsistency.ts";
@@ -498,6 +509,178 @@ function checkReleaseEnvironmentProfileCompatible(
   );
 }
 
+function checkEnvironmentCanonicalResolverPresent(repoRoot: string): ReleaseReadinessCheck {
+  const resolverPath = join(
+    repoRoot,
+    "packages",
+    "environment",
+    "src",
+    "CanonicalEnvironmentResolver.ts",
+  );
+
+  if (!existsSync(resolverPath)) {
+    return check(
+      "environment_canonical_resolver_present",
+      "fail",
+      "CanonicalEnvironmentResolver.ts ausente.",
+      { docPath: "docs/architecture/environment-resolution.md" },
+    );
+  }
+
+  const content = readFileSync(resolverPath, "utf8");
+  const hasResolve = content.includes("resolveCanonicalEnvironment");
+  const hasPrecedence = content.includes("NEXT_PUBLIC_DOS_ENVIRONMENT");
+
+  if (!hasResolve || !hasPrecedence) {
+    return check(
+      "environment_canonical_resolver_present",
+      "fail",
+      "Resolver canônico incompleto.",
+      { docPath: "docs/architecture/environment-resolution.md" },
+    );
+  }
+
+  return check(
+    "environment_canonical_resolver_present",
+    "pass",
+    "resolveCanonicalEnvironment presente com precedência DOS.",
+    { docPath: "docs/architecture/environment-resolution.md" },
+  );
+}
+
+function checkEnvironmentAdaptersPresent(repoRoot: string): ReleaseReadinessCheck {
+  const adapterPaths = [
+    join(repoRoot, "packages", "environment", "src", "adapters", "CoreEnvironmentAdapter.ts"),
+    join(repoRoot, "packages", "environment", "src", "adapters", "VercelEnvAdapter.ts"),
+    join(repoRoot, "packages", "environment", "src", "adapters", "SupabaseEnvironmentAdapter.ts"),
+  ];
+
+  const missing = adapterPaths.filter((path) => !existsSync(path));
+
+  if (missing.length > 0) {
+    return check(
+      "environment_adapters_present",
+      "fail",
+      `Adapters ausentes: ${missing.map((p) => relative(repoRoot, p)).join(", ")}.`,
+      { docPath: "docs/architecture/environment-resolution.md" },
+    );
+  }
+
+  const supabaseEnvPath = join(repoRoot, "packages", "supabase", "src", "SupabaseEnvironment.ts");
+  const supabaseContent = existsSync(supabaseEnvPath)
+    ? readFileSync(supabaseEnvPath, "utf8")
+    : "";
+
+  if (!supabaseContent.includes("resolveCanonicalEnvironment")) {
+    return check(
+      "environment_adapters_present",
+      "fail",
+      "SupabaseEnvironment não delega ao resolver canônico.",
+      { docPath: "docs/architecture/environment-resolution.md" },
+    );
+  }
+
+  return check(
+    "environment_adapters_present",
+    "pass",
+    "Adapters core/vercel/supabase presentes e Supabase delega ao canônico.",
+    { docPath: "docs/architecture/environment-resolution.md" },
+  );
+}
+
+function checkEnvironmentNoUnsafeProductionDefault(repoRoot: string): ReleaseReadinessCheck {
+  const resolverPath = join(
+    repoRoot,
+    "packages",
+    "environment",
+    "src",
+    "CanonicalEnvironmentResolver.ts",
+  );
+
+  if (!existsSync(resolverPath)) {
+    return check(
+      "environment_no_unsafe_production_default",
+      "fail",
+      "Resolver ausente.",
+      { docPath: "docs/architecture/environment-resolution.md" },
+    );
+  }
+
+  const content = readFileSync(resolverPath, "utf8");
+  const hasDefaultDevelopment = content.includes('DEFAULT_ENVIRONMENT: PlatformEnvironment = "development"');
+  const neverInferProduction = content.includes("productionExplicitlyDeclared");
+
+  if (!hasDefaultDevelopment || !neverInferProduction) {
+    return check(
+      "environment_no_unsafe_production_default",
+      "fail",
+      "Garantias anti-promotion para production ausentes no resolver.",
+      { docPath: "docs/architecture/environment-resolution.md" },
+    );
+  }
+
+  const vercelAdapterPath = join(
+    repoRoot,
+    "packages",
+    "environment",
+    "src",
+    "adapters",
+    "VercelEnvAdapter.ts",
+  );
+  const vercelContent = readFileSync(vercelAdapterPath, "utf8");
+  const previewMapsStaging = vercelContent.includes('case "preview"') && vercelContent.includes('"staging"');
+
+  if (!previewMapsStaging) {
+    return check(
+      "environment_no_unsafe_production_default",
+      "warn",
+      "Mapeamento preview→staging não verificado em VercelEnvAdapter.",
+      { blocking: false, docPath: "docs/architecture/environment-resolution.md" },
+    );
+  }
+
+  return check(
+    "environment_no_unsafe_production_default",
+    "pass",
+    "Default development; production exige DOS explícito; preview não implica production.",
+    { docPath: "docs/architecture/environment-resolution.md" },
+  );
+}
+
+function checkEnvironmentResolutionDocsPresent(repoRoot: string): ReleaseReadinessCheck {
+  const docPath = join(repoRoot, "docs", "architecture", "environment-resolution.md");
+
+  if (!existsSync(docPath)) {
+    return check(
+      "environment_resolution_docs_present",
+      "fail",
+      "docs/architecture/environment-resolution.md ausente.",
+      { docPath: "docs/architecture/environment-resolution.md" },
+    );
+  }
+
+  const content = readFileSync(docPath, "utf8");
+  const hasPrecedence =
+    content.includes("Precedência") || content.includes("NEXT_PUBLIC_DOS_ENVIRONMENT");
+  const hasMismatch = content.includes("mismatch") || content.includes("diverg");
+
+  if (!hasPrecedence || !hasMismatch) {
+    return check(
+      "environment_resolution_docs_present",
+      "warn",
+      "Documentação presente, mas precedência/mismatch incompletos.",
+      { blocking: false, docPath: "docs/architecture/environment-resolution.md" },
+    );
+  }
+
+  return check(
+    "environment_resolution_docs_present",
+    "pass",
+    "Documentação de resolução de ambiente presente.",
+    { docPath: "docs/architecture/environment-resolution.md" },
+  );
+}
+
 function runRbacVerificationTests(repoRoot: string): ReleaseReadinessCheck {
   const result = spawnSync("pnpm", ["test:rbac"], {
     cwd: repoRoot,
@@ -923,6 +1106,17 @@ export function runReleaseReadiness(
   checks.push(checkChangelogCurrentVersionEntry(repoRoot));
   checks.push(checkReleaseWorkflowsPresent(repoRoot));
   checks.push(checkReleaseEnvironmentProfileCompatible(repoRoot));
+  checks.push(checkEnvironmentCanonicalResolverPresent(repoRoot));
+  checks.push(checkEnvironmentAdaptersPresent(repoRoot));
+  checks.push(checkEnvironmentNoUnsafeProductionDefault(repoRoot));
+  checks.push(checkEnvironmentResolutionDocsPresent(repoRoot));
+  checks.push(checkServerRbacMigrationPresent(repoRoot));
+  checks.push(checkServerRbacHelpersPresent(repoRoot));
+  checks.push(checkServerRbacNoPermissiveAnon(repoRoot));
+  checks.push(runServerRbacTests(repoRoot));
+  checks.push(checkOwnerAdminSeparation(repoRoot));
+  checks.push(checkInactiveProfileGuardPresent(repoRoot));
+  checks.push(runOwnerAdminHandoffTests(repoRoot));
   checks.push(runRbacVerificationTests(repoRoot));
 
   const preliminary = buildReleaseReadinessReport(checks, []);

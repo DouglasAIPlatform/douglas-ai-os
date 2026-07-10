@@ -18,7 +18,7 @@ export interface EnvironmentProfile {
 export const ENVIRONMENT_PROFILES: Record<PlatformEnvironment, EnvironmentProfile> = {
   development: {
     name: "development",
-    releaseChannel: "dev",
+    releaseChannel: "development",
     allowMocks: true,
     allowMockRoleChange: true,
     allowLocalFallback: true,

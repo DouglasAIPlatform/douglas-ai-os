@@ -20,7 +20,18 @@ export type ReleaseReadinessCheckId =
   | "changelog_present"
   | "changelog_current_version_entry"
   | "release_workflows_present"
-  | "release_environment_profile_compatible";
+  | "release_environment_profile_compatible"
+  | "environment_canonical_resolver_present"
+  | "environment_adapters_present"
+  | "environment_no_unsafe_production_default"
+  | "environment_resolution_docs_present"
+  | "server_rbac_migration_present"
+  | "server_rbac_helpers_present"
+  | "server_rbac_no_permissive_anon"
+  | "server_rbac_tests_passing"
+  | "owner_admin_separation_verified"
+  | "inactive_profile_guard_present"
+  | "owner_admin_handoff_tests_passing";
 
 export interface ReleaseReadinessCheck {
   id: ReleaseReadinessCheckId;
@@ -53,6 +64,17 @@ export const RELEASE_READINESS_CHECK_LABELS: Record<ReleaseReadinessCheckId, str
   changelog_current_version_entry: "Entrada da versão atual no CHANGELOG",
   release_workflows_present: "Workflows de release/validate presentes",
   release_environment_profile_compatible: "Perfil de ambiente compatível com release",
+  environment_canonical_resolver_present: "Resolver canônico de ambiente presente",
+  environment_adapters_present: "Adapters de compatibilidade presentes",
+  environment_no_unsafe_production_default: "Production nunca é default",
+  environment_resolution_docs_present: "Documentação de resolução de ambiente",
+  server_rbac_migration_present: "Migration RBAC server-side presente",
+  server_rbac_helpers_present: "Helpers SQL RBAC essenciais",
+  server_rbac_no_permissive_anon: "Sem policy permissiva para anon",
+  server_rbac_tests_passing: "Testes server RBAC passando",
+  owner_admin_separation_verified: "Owner diferente de admin no catálogo",
+  inactive_profile_guard_present: "Inactive profile guard presente",
+  owner_admin_handoff_tests_passing: "Testes owner/admin e profile inativo",
 };
 
 /** Migrations mínimas esperadas para release (ordem lexicográfica). */
@@ -61,6 +83,7 @@ export const EXPECTED_SUPABASE_MIGRATIONS = [
   "20250707130001_operator_profiles.sql",
   "20250707130002_operational_audit_entries.sql",
   "20250707130003_operator_sessions.sql",
+  "20250710180000_server_rbac_enforcement.sql",
 ] as const;
 
 /** Documentos operacionais e de arquitetura exigidos antes de release. */
@@ -74,7 +97,12 @@ export const REQUIRED_RELEASE_DOCS = [
   "docs/architecture/audit-edge-function.md",
   "docs/architecture/audit-migration-supabase.md",
   "docs/security/rbac-verification-suite.md",
+  "docs/security/server-side-rbac-enforcement.md",
+  "docs/security/owner-admin-separation.md",
+  "docs/security/inactive-profile-guard.md",
+  "docs/database/rbac-rls-policies.md",
   "docs/architecture/environment-separation.md",
+  "docs/architecture/environment-resolution.md",
   "docs/operations/staging-production-environments.md",
   "docs/engineering/release-versioning.md",
   "docs/operations/release-process.md",

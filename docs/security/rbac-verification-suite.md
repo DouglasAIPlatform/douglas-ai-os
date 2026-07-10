@@ -47,6 +47,10 @@ Derivada de `ROLE_PERMISSIONS` em `packages/security/src/Permission.ts`:
 | `runtime:pause` | | | ✓ | ✓ |
 | `runtime:resume` | | | ✓ | ✓ |
 | `runtime:restart` | | | ✓ | ✓ |
+| `security:manage_roles` | | | | ✓ |
+| `security:manage_owners` | | | | ✓ |
+| `release:approve_production` | | | | ✓ |
+| `platform:critical_configuration` | | | | ✓ |
 
 ### Capabilities mapeadas
 
@@ -58,7 +62,7 @@ Derivada de `ROLE_PERMISSIONS` em `packages/security/src/Permission.ts`:
 | Pausar / retomar / reiniciar módulo | `runtime:pause/resume/restart` | **Sim** |
 | Operações administrativas | pause/resume/restart | Admin/owner only |
 
-**Owner ≡ admin** no catálogo atual — não há permissões exclusivas do owner (`OWNER_EXCLUSIVE_PERMISSIONS` vazio).
+**Owner possui 4 permissões exclusivas** — admin não possui `OWNER_EXCLUSIVE_PERMISSIONS` (Sprint 5.43).
 
 ## Testes por role
 
@@ -70,9 +74,15 @@ Derivada de `ROLE_PERMISSIONS` em `packages/security/src/Permission.ts`:
 
 ### ADMIN
 
-- Paridade com owner no catálogo
+- Permissões operacionais de runtime (6) — **sem** owner-exclusive
 - Ações administrativas de runtime permitidas
-- Não ultrapassa owner (nenhuma permissão owner-only existe hoje)
+- Não possui `security:manage_owners` nem demais permissões owner-only
+
+### Profile inativo (handoff)
+
+- Testado em `@douglas/supabase` — `auth-handoff.rbac.test.ts`
+- Profile inativo **não** gera `operatorOverride` autorizado
+- Staging/production → `blocked_by_profile_status` com viewer forçado
 
 ### OPERATOR
 

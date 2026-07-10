@@ -23,7 +23,12 @@ export type ProductionSafetyCheckId =
   | "platform_environment_auth_profile_required"
   | "platform_environment_edge_function_required"
   | "platform_environment_incompatible"
-  | "platform_environment_dev_not_production_ready";
+  | "platform_environment_dev_not_production_ready"
+  | "platform_environment_canonical_resolved"
+  | "platform_environment_no_critical_mismatch"
+  | "platform_environment_production_explicit"
+  | "platform_environment_preview_not_production"
+  | "platform_environment_staging_production_policies";
 
 export interface ProductionSafetyCheck {
   id: ProductionSafetyCheckId;
@@ -59,6 +64,11 @@ export const PRODUCTION_SAFETY_CHECK_LABELS: Record<ProductionSafetyCheckId, str
   platform_environment_edge_function_required: "Audit edge_function esperado",
   platform_environment_incompatible: "Configuração incompatível com ambiente",
   platform_environment_dev_not_production_ready: "Development não pronto para produção",
+  platform_environment_canonical_resolved: "Ambiente canônico resolvido",
+  platform_environment_no_critical_mismatch: "Sem divergência crítica entre fontes",
+  platform_environment_production_explicit: "Production declarado explicitamente",
+  platform_environment_preview_not_production: "Preview não interpretado como production",
+  platform_environment_staging_production_policies: "Políticas staging/production corretas",
 };
 
 /** Mínimo de tentativas para avaliar taxa de falha (Sprint 5.36). */

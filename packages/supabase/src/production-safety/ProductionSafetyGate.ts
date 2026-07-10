@@ -240,6 +240,21 @@ export function buildProductionSafetyNextSteps(
       case "platform_environment_dev_not_production_ready":
         steps.push("Development não é elegível para revisão de produção.");
         break;
+      case "platform_environment_canonical_resolved":
+        steps.push("Verifique NEXT_PUBLIC_DOS_ENVIRONMENT — docs/architecture/environment-resolution.md.");
+        break;
+      case "platform_environment_no_critical_mismatch":
+        steps.push("Alinhe VERCEL_ENV e DOS antes de deploy — divergência crítica detectada.");
+        break;
+      case "platform_environment_production_explicit":
+        steps.push("Defina NEXT_PUBLIC_DOS_ENVIRONMENT=production explicitamente para produção.");
+        break;
+      case "platform_environment_preview_not_production":
+        steps.push("VERCEL preview não equivale a production operacional.");
+        break;
+      case "platform_environment_staging_production_policies":
+        steps.push("Revise políticas de mocks/auth/edge para staging ou production.");
+        break;
       default:
         break;
     }
@@ -277,10 +292,100 @@ function appendPlatformEnvironmentChecks(
       "platform_environment_edge_function_required",
       "platform_environment_incompatible",
       "platform_environment_dev_not_production_ready",
+      "platform_environment_canonical_resolved",
+      "platform_environment_no_critical_mismatch",
+      "platform_environment_production_explicit",
+      "platform_environment_preview_not_production",
+      "platform_environment_staging_production_policies",
     ] as ProductionSafetyCheckId[]) {
       checks.push(check(id, "skip", "Snapshot de ambiente indisponível."));
     }
     return;
+  }
+
+  const docResolution = "docs/architecture/environment-resolution.md";
+
+  checks.push(
+    check(
+      "platform_environment_canonical_resolved",
+      platform.canonicalEnvironment ? "pass" : "fail",
+      platform.canonicalEnvironment
+        ? `Canônico: ${platform.canonicalEnvironment}.`
+        : "Ambiente canônico não resolvido.",
+      { blocking: !platform.canonicalEnvironment, docPath: docResolution },
+    ),
+  );
+
+  checks.push(
+    check(
+      "platform_environment_no_critical_mismatch",
+      platform.hasCriticalMismatch ? "fail" : "pass",
+      platform.hasCriticalMismatch
+        ? `${platform.mismatchCount} divergência(s) — inclui conflito crítico Vercel/DOS.`
+        : "Nenhuma divergência crítica entre fontes.",
+      { blocking: platform.hasCriticalMismatch, docPath: docResolution },
+    ),
+  );
+
+  if (platform.name === "production") {
+    checks.push(
+      check(
+        "platform_environment_production_explicit",
+        platform.productionExplicitlyDeclared ? "pass" : "fail",
+        platform.productionExplicitlyDeclared
+          ? "Production declarado via NEXT_PUBLIC_DOS_ENVIRONMENT."
+          : "Production requer declaração explícita — nunca inferido de VERCEL_ENV.",
+        { blocking: !platform.productionExplicitlyDeclared, docPath: docResolution },
+      ),
+    );
+  } else {
+    checks.push(
+      check(
+        "platform_environment_production_explicit",
+        "skip",
+        "Check aplicável apenas quando ambiente canônico é production.",
+      ),
+    );
+  }
+
+  const previewNotProduction =
+    platform.vercelEnvHint !== "preview" || platform.name !== "production";
+
+  checks.push(
+    check(
+      "platform_environment_preview_not_production",
+      previewNotProduction ? "pass" : "fail",
+      previewNotProduction
+        ? "VERCEL preview não está sendo tratado como production."
+        : "VERCEL preview com DOS production — combinação inválida.",
+      { blocking: !previewNotProduction, docPath: docResolution },
+    ),
+  );
+
+  if (platform.name === "staging" || platform.name === "production") {
+    const policiesOk =
+      !platform.allowMocks &&
+      !platform.allowMockRoleChange &&
+      platform.requireAuthProfile &&
+      platform.requireEdgeFunctionAudit;
+    checks.push(
+      check(
+        "platform_environment_staging_production_policies",
+        policiesOk ? "pass" : "fail",
+        policiesOk
+          ? `Políticas ${platform.name} exigem auth real, sem mocks e edge_function.`
+          : "Políticas de staging/production incompletas no perfil.",
+        { blocking: !policiesOk, docPath: docPath },
+      ),
+    );
+  } else {
+    checks.push(
+      check(
+        "platform_environment_staging_production_policies",
+        "skip",
+        "Políticas restritivas aplicáveis a staging/production.",
+      ),
+    );
   }
 
   checks.push(

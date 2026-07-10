@@ -8,6 +8,8 @@ export interface EnvironmentSafetyContext {
   isUsingMockOperator?: boolean;
   mockRoleChangeAllowed?: boolean;
   hasAuthProfile?: boolean;
+  profileActive?: boolean;
+  isBlockedByProfileStatus?: boolean;
   userAuthenticated?: boolean;
   auditWriteMode?: string | null;
 }
@@ -52,6 +54,18 @@ export function evaluateEnvironmentSafety(
 
   if (profile.requireAuthProfile && context.hasAuthProfile === false) {
     blockingIssues.push("operator_profiles real obrigatório neste ambiente.");
+  }
+
+  if (
+    isNonDevelopmentEnvironment(profile.name) &&
+    context.hasAuthProfile &&
+    context.profileActive === false
+  ) {
+    blockingIssues.push("Profile operacional inativo — RBAC bloqueado neste ambiente.");
+  }
+
+  if (context.isBlockedByProfileStatus) {
+    blockingIssues.push("Handoff bloqueado por profile inativo (staging/production).");
   }
 
   if (
