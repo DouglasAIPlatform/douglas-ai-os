@@ -31,7 +31,16 @@ export type ReleaseReadinessCheckId =
   | "server_rbac_tests_passing"
   | "owner_admin_separation_verified"
   | "inactive_profile_guard_present"
-  | "owner_admin_handoff_tests_passing";
+  | "owner_admin_handoff_tests_passing"
+  | "owner_permission_seed_migration_present"
+  | "owner_permission_seed_complete"
+  | "owner_permission_seed_owner_only"
+  | "owner_permission_seed_no_anon"
+  | "owner_admin_rls_separated"
+  | "admin_cannot_promote_owner"
+  | "inactive_profile_rls_blocked"
+  | "no_permissive_rbac_policies"
+  | "rbac_catalog_drift_check";
 
 export interface ReleaseReadinessCheck {
   id: ReleaseReadinessCheckId;
@@ -75,6 +84,15 @@ export const RELEASE_READINESS_CHECK_LABELS: Record<ReleaseReadinessCheckId, str
   owner_admin_separation_verified: "Owner diferente de admin no catálogo",
   inactive_profile_guard_present: "Inactive profile guard presente",
   owner_admin_handoff_tests_passing: "Testes owner/admin e profile inativo",
+  owner_permission_seed_migration_present: "Migration owner permission seed presente",
+  owner_permission_seed_complete: "Seed owner-exclusive completo (4 permissões)",
+  owner_permission_seed_owner_only: "Owner-exclusive somente para role owner",
+  owner_permission_seed_no_anon: "Owner seed sem grant para anon",
+  owner_admin_rls_separated: "RLS owner/admin separado",
+  admin_cannot_promote_owner: "Admin não promove owner",
+  inactive_profile_rls_blocked: "Profile inativo bloqueado em RLS",
+  no_permissive_rbac_policies: "Sem policies RBAC permissivas",
+  rbac_catalog_drift_check: "Catálogo RBAC alinhado (drift check)",
 };
 
 /** Migrations mínimas esperadas para release (ordem lexicográfica). */
@@ -84,6 +102,8 @@ export const EXPECTED_SUPABASE_MIGRATIONS = [
   "20250707130002_operational_audit_entries.sql",
   "20250707130003_operator_sessions.sql",
   "20250710180000_server_rbac_enforcement.sql",
+  "20250710190000_owner_permission_seed.sql",
+  "20250710200000_owner_admin_rls_separation.sql",
 ] as const;
 
 /** Documentos operacionais e de arquitetura exigidos antes de release. */
@@ -100,7 +120,9 @@ export const REQUIRED_RELEASE_DOCS = [
   "docs/security/server-side-rbac-enforcement.md",
   "docs/security/owner-admin-separation.md",
   "docs/security/inactive-profile-guard.md",
+  "docs/security/rbac-catalog-drift-guard.md",
   "docs/database/rbac-rls-policies.md",
+  "docs/database/owner-permission-seed.md",
   "docs/architecture/environment-separation.md",
   "docs/architecture/environment-resolution.md",
   "docs/operations/staging-production-environments.md",

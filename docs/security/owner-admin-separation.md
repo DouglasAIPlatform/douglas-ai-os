@@ -37,17 +37,21 @@ Não há UI funcional para estas ações nesta sprint — servem para matriz, te
 
 - **Client:** `PermissionGuard` usa catálogo `@douglas/security`
 - **Edge / SQL:** catálogo espelhado; ingest remoto continua exigindo `runtime:refresh` (operator+)
-- **RLS:** migration 5.42 ainda usa `has_platform_role(ARRAY['owner','admin'])` — owner-exclusive ainda não tem políticas SQL dedicadas
+- **Postgres seed (5.44):** `20250710190000_owner_permission_seed.sql`
+- **RLS owner/admin (5.45):** `20250710200000_owner_admin_rls_separation.sql` — policies de `operator_profiles` separadas; admin não promove owner
 
 ## Limitações
 
-- Seed `operator_role_permissions` no Postgres ainda reflete catálogo pré-5.43 até nova migration manual
-- Permissões owner-exclusive não têm UI — apenas gates e testes
-- Admin ainda compartilha pause/resume/restart com owner (operacional)
+- Migrations 5.44/5.45 **não aplicadas remotamente** até apply manual
+- Permissões owner-exclusive sem UI — gates e enforcement SQL
+- Admin compartilha pause/resume/restart com owner (operacional)
+- Leitura de audit completa continua owner **e** admin (não owner-exclusive)
 
 ## Verificação
 
 ```bash
 pnpm test:rbac
-pnpm release:check   # owner_admin_separation_verified
+pnpm release:check   # owner_admin_rls_separated, admin_cannot_promote_owner, ...
 ```
+
+Ver também: [owner-permission-seed.md](../database/owner-permission-seed.md)

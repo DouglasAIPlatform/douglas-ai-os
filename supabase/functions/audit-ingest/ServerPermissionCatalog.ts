@@ -1,6 +1,7 @@
 /**
- * Catálogo server-side — espelho de @douglas/security ServerPermissionCatalog.
- * Edge Functions não importam o monorepo; manter alinhado manualmente.
+ * Catálogo server-side — espelho de @douglas/security.
+ * Edge Functions não importam o monorepo; manter alinhado com packages/security/rbac-catalog.json.
+ * Verificação: pnpm rbac:drift-check
  */
 
 export type PlatformOperatorRole = "owner" | "admin" | "operator" | "viewer";

@@ -42,6 +42,9 @@ Helpers SQL (migration `20250710180000_server_rbac_enforcement.sql`):
 | `current_operator_role()` | Role do profile ativo (sem JWT fallback) |
 | `operator_has_permission(text)` | Join profile + `operator_role_permissions` |
 | `require_active_operator()` | Profile `active` obrigatório |
+| `can_promote_to_owner()` | `security:manage_owners` (Sprint 5.45) |
+| `can_manage_operational_roles()` | `security:manage_roles` (Sprint 5.45) |
+| `is_active_admin_operator()` | Admin active sem owner-exclusive (5.45) |
 
 **Regra:** role do payload HTTP **nunca** autoriza — apenas `operator_profiles` ativo.
 
@@ -56,17 +59,20 @@ Helpers SQL (migration `20250710180000_server_rbac_enforcement.sql`):
 
 ## Limitações até apply manual
 
-A migration **não é aplicada automaticamente**. Até `supabase db push` / apply manual:
+Aplicar em ordem: `20250710180000` → `20250710190000` → `20250710200000`.
+
+Até apply manual:
 
 - RLS em produção permanece na versão anterior
-- Helpers SQL indisponíveis no banco remoto
+- Helpers e policies owner/admin separadas indisponíveis no banco remoto
 - Edge Function já aplica lógica server-side via lookup de profile
 
 ## Testes
 
-- `packages/security/src/server-authorization/server-authorization.rbac.test.ts`
-- Verificação estática SQL (`ServerRbacSqlVerification.ts`)
-- Integrado em `pnpm test:rbac` e `pnpm release:check`
+- `server-authorization.rbac.test.ts`
+- `owner-permission-seed.rbac.test.ts`
+- `owner-admin-rls-separation.rbac.test.ts`
+- Verificação estática SQL (`ServerRbacSqlVerification.ts`, `OwnerAdminRlsVerification.ts`)
 
 ## Referências
 

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "roles": ["viewer", "operator", "admin", "owner"],
+  "permissions": [
+    "platform:view",
+    "runtime:refresh",
+    "runtime:health_check",
+    "runtime:pause",
+    "runtime:resume",
+    "runtime:restart",
+    "security:manage_roles",
+    "security:manage_owners",
+    "release:approve_production",
+    "platform:critical_configuration"
+  ],
+  "ownerExclusive": [
+    "security:manage_roles",
+    "security:manage_owners",
+    "release:approve_production",
+    "platform:critical_configuration"
+  ],
+  "rolePermissions": {
+    "viewer": ["platform:view"],
+    "operator": ["platform:view", "runtime:refresh", "runtime:health_check"],
+    "admin": [
+      "platform:view",
+      "runtime:refresh",
+      "runtime:health_check",
+      "runtime:pause",
+      "runtime:resume",
+      "runtime:restart"
+    ],
+    "owner": [
+      "platform:view",
+      "runtime:refresh",
+      "runtime:health_check",
+      "runtime:pause",
+      "runtime:resume",
+      "runtime:restart",
+      "security:manage_roles",
+      "security:manage_owners",
+      "release:approve_production",
+      "platform:critical_configuration"
+    ]
+  }
+}

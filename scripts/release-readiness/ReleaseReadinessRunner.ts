@@ -31,6 +31,19 @@ import {
   runOwnerAdminHandoffTests,
 } from "./OwnerAdminSeparationChecks.ts";
 import {
+  checkOwnerPermissionSeedComplete,
+  checkOwnerPermissionSeedMigrationPresent,
+  checkOwnerPermissionSeedNoAnon,
+  checkOwnerPermissionSeedOwnerOnly,
+} from "./OwnerPermissionSeedChecks.ts";
+import {
+  checkAdminCannotPromoteOwner,
+  checkInactiveProfileRlsBlocked,
+  checkNoPermissiveRbacPolicies,
+  checkOwnerAdminRlsSeparated,
+} from "./OwnerAdminRlsChecks.ts";
+import { checkRBACCatalogDrift } from "./RBACCatalogDriftChecks.ts";
+import {
   collectVersionTargets,
   loadReleaseManifest,
 } from "../release-versioning/VersionConsistency.ts";
@@ -1117,6 +1130,15 @@ export function runReleaseReadiness(
   checks.push(checkOwnerAdminSeparation(repoRoot));
   checks.push(checkInactiveProfileGuardPresent(repoRoot));
   checks.push(runOwnerAdminHandoffTests(repoRoot));
+  checks.push(checkOwnerPermissionSeedMigrationPresent(repoRoot));
+  checks.push(checkOwnerPermissionSeedComplete(repoRoot));
+  checks.push(checkOwnerPermissionSeedOwnerOnly(repoRoot));
+  checks.push(checkOwnerPermissionSeedNoAnon(repoRoot));
+  checks.push(checkOwnerAdminRlsSeparated(repoRoot));
+  checks.push(checkAdminCannotPromoteOwner(repoRoot));
+  checks.push(checkInactiveProfileRlsBlocked(repoRoot));
+  checks.push(checkNoPermissiveRbacPolicies(repoRoot));
+  checks.push(checkRBACCatalogDrift(repoRoot));
   checks.push(runRbacVerificationTests(repoRoot));
 
   const preliminary = buildReleaseReadinessReport(checks, []);

@@ -1,33 +1,16 @@
 import type { OperatorRole, Permission } from "./SecurityTypes";
+import rbacCatalog from "../rbac-catalog.json" with { type: "json" };
 
-/** Permissões reservadas exclusivamente ao owner — policy, gates e testes futuros. */
+/** Permissões reservadas exclusivamente ao owner — fonte: packages/security/rbac-catalog.json */
 export const OWNER_EXCLUSIVE_PERMISSIONS: Permission[] = [
-  "security:manage_roles",
-  "security:manage_owners",
-  "release:approve_production",
-  "platform:critical_configuration",
-];
+  ...rbacCatalog.ownerExclusive,
+] as Permission[];
 
 export const ROLE_PERMISSIONS: Record<OperatorRole, Permission[]> = {
-  viewer: ["platform:view"],
-  operator: ["platform:view", "runtime:refresh", "runtime:health_check"],
-  admin: [
-    "platform:view",
-    "runtime:refresh",
-    "runtime:health_check",
-    "runtime:pause",
-    "runtime:resume",
-    "runtime:restart",
-  ],
-  owner: [
-    "platform:view",
-    "runtime:refresh",
-    "runtime:health_check",
-    "runtime:pause",
-    "runtime:resume",
-    "runtime:restart",
-    ...OWNER_EXCLUSIVE_PERMISSIONS,
-  ],
+  viewer: [...rbacCatalog.rolePermissions.viewer] as Permission[],
+  operator: [...rbacCatalog.rolePermissions.operator] as Permission[],
+  admin: [...rbacCatalog.rolePermissions.admin] as Permission[],
+  owner: [...rbacCatalog.rolePermissions.owner] as Permission[],
 };
 
 export function roleHasPermission(role: OperatorRole, permission: Permission): boolean {

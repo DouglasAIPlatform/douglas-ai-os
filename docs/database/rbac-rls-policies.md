@@ -11,24 +11,37 @@
 | `operator_role_permissions` | ✓ | Somente migrations/service |
 | `operational_audit_entries` | ✓ | **Negado** — Edge Function only |
 
-## operator_profiles
+## operator_profiles (Sprint 5.45 — owner/admin separados)
 
-| Policy | Role | Regra |
+| Policy | Quem | Regra |
 |--------|------|-------|
 | `operator_profiles_select_own` | authenticated | `user_id = auth.uid()` |
-| `operator_profiles_select_admin` | authenticated | profile ativo + `platform:view` + owner/admin |
-| `operator_profiles_update_own_limited` | authenticated | own + **status active**; role imutável |
-| `operator_profiles_update_admin` | authenticated | owner/admin |
-| `operator_profiles_insert_admin` | authenticated | owner/admin |
-| `operator_profiles_delete_owner` | authenticated | owner |
+| `operator_profiles_select_owner_managed` | owner | `can_manage_operational_roles()` + `platform:view` + profile **active** |
+| `operator_profiles_select_admin_managed` | admin | `is_active_admin_operator()` — só rows `operator`/`viewer` |
+| `operator_profiles_update_own_limited` | own | status **active**; role/status imutáveis |
+| `operator_profiles_update_owner` | owner | `can_manage_operational_roles()`; role `owner` exige `can_promote_to_owner()` |
+| `operator_profiles_update_admin` | admin | só targets `operator`/`viewer`; não promove owner |
+| `operator_profiles_insert_owner` | owner | role `owner` → `can_promote_to_owner()`; demais → `can_manage_operational_roles()` |
+| `operator_profiles_insert_admin` | admin | só `operator`/`viewer` |
+| `operator_profiles_delete_owner` | owner | delete owner row → `can_promote_to_owner()`; demais → `can_manage_operational_roles()` |
 
-**Profile inativo:** sem autorização operacional; leitura própria permitida para UI de onboarding.
+**Profile inativo (`invited`/`suspended`):** `require_active_operator()` false — sem mutações administrativas.
+
+### Helpers owner/admin (5.45)
+
+| Função | Uso |
+|--------|-----|
+| `can_promote_to_owner()` | `security:manage_owners` + profile active |
+| `can_manage_operational_roles()` | `security:manage_roles` + profile active |
+| `is_active_admin_operator()` | admin + active + `platform:view` |
+| `can_read_full_audit_log()` | owner/admin + active + `platform:view` (leitura audit — não owner-exclusive) |
 
 ## operator_role_permissions
 
 - SELECT authenticated (catálogo read-only)
 - **Deny ALL anon** (policy explícita Sprint 5.42)
-- Seed alinhado a `ROLE_PERMISSIONS` (@douglas/security)
+- Seed base: `20250707130000_platform_helpers.sql` (6 permissões compartilhadas)
+- Seed owner-exclusive: `20250710190000_owner_permission_seed.sql` (Sprint 5.44)
 
 ## operational_audit_entries
 
@@ -60,7 +73,10 @@ Todos usam `auth.uid()` — retornam NULL/false para anon.
 |------|------------|
 | viewer | platform:view |
 | operator | + runtime:refresh, runtime:health_check |
-| admin/owner | + runtime:pause, runtime:resume, runtime:restart |
+| admin | + runtime:pause, runtime:resume, runtime:restart |
+| owner | admin + security:manage_roles, security:manage_owners, release:approve_production, platform:critical_configuration |
+
+Ver [owner-permission-seed.md](./owner-permission-seed.md) para detalhes do seed owner-exclusive.
 
 ## Apply manual
 
@@ -74,9 +90,13 @@ Ver [apply-supabase-migrations.md](../operations/apply-supabase-migrations.md).
 
 **Não** aplicar em produção sem revisão de RLS e backup.
 
-## Migration
+## Migrations
 
-`supabase/migrations/20250710180000_server_rbac_enforcement.sql`
+| Arquivo | Escopo |
+|---------|--------|
+| `20250710180000_server_rbac_enforcement.sql` | Helpers SQL + RLS endurecido |
+| `20250710190000_owner_permission_seed.sql` | Seed owner-exclusive (4 permissões) |
+| `20250710200000_owner_admin_rls_separation.sql` | RLS owner ≠ admin em operator_profiles |
 
 Depende de:
 
