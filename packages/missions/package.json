@@ -8,6 +8,10 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "dependencies": {
+    "@douglas/agents": "workspace:*",
+    "@douglas/events": "workspace:*"
+  },
   "peerDependencies": {
     "react": "^19"
   },

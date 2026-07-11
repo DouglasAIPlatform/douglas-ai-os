@@ -14,9 +14,11 @@ import { SupabaseConnectionWidget } from "@/components/widgets/SupabaseConnectio
 import { SupabaseValidationWidget } from "@/components/widgets/SupabaseValidationWidget";
 import { ProductionSafetyWidget } from "@/components/widgets/ProductionSafetyWidget";
 import { EnvironmentStatusWidget } from "@/components/widgets/EnvironmentStatusWidget";
+import { StagingReadinessWidget } from "@/components/widgets/StagingReadinessWidget";
 import { ReleaseStatusWidget } from "@/components/widgets/ReleaseStatusWidget";
 import { AuthStatusWidget } from "@/components/widgets/AuthStatusWidget";
 import { OperatorProfileBootstrapWidget } from "@/components/widgets/OperatorProfileBootstrapWidget";
+import { MissionExecutionWidget } from "@/components/widgets/MissionExecutionWidget";
 import { UnifiedPlatformStatusWidget } from "@/components/widgets/UnifiedPlatformStatusWidget";
 import { getRouteBreadcrumbs, getRouteById } from "@/config/routes";
 import { CommandPaletteActions } from "@/features/command-palette/CommandPaletteActions";
@@ -53,6 +55,9 @@ export function HeadquartersPage() {
           <RuntimeControlWidget />
         </Card>
         <Card className="lg:col-span-2">
+          <MissionExecutionWidget />
+        </Card>
+        <Card className="lg:col-span-2">
           <HealthDashboardWidget />
         </Card>
         <Card className="lg:col-span-2">
@@ -75,6 +80,9 @@ export function HeadquartersPage() {
         </Card>
         <Card className="lg:col-span-2">
           <EnvironmentStatusWidget />
+        </Card>
+        <Card className="lg:col-span-2">
+          <StagingReadinessWidget />
         </Card>
         <Card className="lg:col-span-2">
           <ReleaseStatusWidget />

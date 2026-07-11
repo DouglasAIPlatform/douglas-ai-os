@@ -10,6 +10,33 @@ const basePermissions = [
 
 export const agentDefinitions: AgentDefinition[] = [
   {
+    id: "system-diagnostics-agent",
+    name: "System Diagnostics Agent",
+    department: "Operations",
+    description:
+      "Agente operacional read-only para diagnóstico da plataforma via snapshots internos.",
+    status: "idle",
+    priority: "high",
+    permissions: ["read:workspace", "execute:task", "emit:events"],
+    capabilities: [
+      "platform:diagnostics",
+      "runtime:inspect",
+      "health:inspect",
+      "dependencies:inspect",
+      "events:inspect",
+      "audit:summary",
+      "analysis",
+    ],
+    metadata: {
+      role: "Diagnostics",
+      workspaceId: "ws:douglas-os",
+      version: "1.0.0",
+      tags: ["operations", "diagnostics", "read-only"],
+      readOnly: true,
+      operational: true,
+    },
+  },
+  {
     id: "agent:atlas",
     name: "Atlas",
     department: "Inteligência",

@@ -1,6 +1,6 @@
 export type AuditSeverity = "info" | "warning" | "error" | "critical";
 
-export type AuditSource = "security" | "runtime" | "diagnostics" | "platform" | "authentication";
+export type AuditSource = "security" | "runtime" | "diagnostics" | "platform" | "authentication" | "missions";
 
 export type AuditAction =
   | "action_allowed"
@@ -16,7 +16,17 @@ export type AuditAction =
   | "runtime_action_completed"
   | "runtime_action_failed"
   | "diagnostics_critical_issue"
-  | "readiness_status_changed";
+  | "readiness_status_changed"
+  | "mission_created"
+  | "mission_validated"
+  | "mission_planned"
+  | "mission_assigned"
+  | "mission_started"
+  | "mission_progress"
+  | "mission_completed"
+  | "mission_failed"
+  | "mission_cancelled"
+  | "mission_duplicate_rejected";
 
 export interface AuditEntry {
   id: string;
@@ -50,6 +60,7 @@ export const AUDIT_SOURCE_LABELS: Record<AuditSource, string> = {
   diagnostics: "Diagnostics",
   platform: "Plataforma",
   authentication: "Autenticação",
+  missions: "Missões",
 };
 
 export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
@@ -67,6 +78,16 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   runtime_action_failed: "Runtime falhou",
   diagnostics_critical_issue: "Issue crítico (diagnostics)",
   readiness_status_changed: "Readiness alterado",
+  mission_created: "Missão criada",
+  mission_validated: "Missão validada",
+  mission_planned: "Missão planejada",
+  mission_assigned: "Missão atribuída",
+  mission_started: "Missão iniciada",
+  mission_progress: "Progresso da missão",
+  mission_completed: "Missão concluída",
+  mission_failed: "Missão falhou",
+  mission_cancelled: "Missão cancelada",
+  mission_duplicate_rejected: "Execução duplicada rejeitada",
 };
 
 export const AUDITED_EVENT_TOPICS = [
@@ -84,4 +105,14 @@ export const AUDITED_EVENT_TOPICS = [
   "runtime:action:failed",
   "diagnostics:report:completed",
   "diagnostics:report:failed",
+  "mission:created",
+  "mission:validated",
+  "mission:planned",
+  "mission:assigned",
+  "mission:started",
+  "mission:progress",
+  "mission:completed",
+  "mission:failed",
+  "mission:cancelled",
+  "mission:duplicate_rejected",
 ] as const;

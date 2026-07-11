@@ -102,4 +102,20 @@ export const corporateEventDefinitions: EventDefinition[] = [
       ["analytics", "workflow", "notifications"],
     ),
   ),
+  ...EVENT_CATEGORIES.missions.map((topic) =>
+    defineEvent(
+      topic,
+      `Mission execution event: ${topic}`,
+      ["missions"],
+      ["analytics", "monitor", "notifications"],
+    ),
+  ),
+  ...EVENT_CATEGORIES.agents.map((topic) =>
+    defineEvent(
+      topic,
+      `Operational agent event: ${topic}`,
+      ["agents"],
+      ["analytics", "monitor", "audit"],
+    ),
+  ),
 ];

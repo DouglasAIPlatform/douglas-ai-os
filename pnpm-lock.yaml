@@ -354,6 +354,12 @@ importers:
 
   packages/missions:
     dependencies:
+      '@douglas/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@douglas/events':
+        specifier: workspace:*
+        version: link:../events
       react:
         specifier: ^19
         version: 19.2.4

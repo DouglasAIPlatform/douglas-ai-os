@@ -4,6 +4,8 @@ import type {
   RuntimeActionType,
   SecurityActionEventPayload,
 } from "./OperationalEventTypes";
+import type { MissionLifecycleEventPayload } from "./MissionEventTypes";
+import type { AgentOperationalEventPayload } from "./AgentOperationalEventTypes";
 
 export type {
   ActionConfirmationRiskLevel,
@@ -39,7 +41,9 @@ export type EventCategory =
   | "workflow"
   | "automation"
   | "calma"
-  | "youtube";
+  | "youtube"
+  | "missions"
+  | "agents";
 
 export type EventSource =
   | "core"
@@ -196,6 +200,24 @@ export interface DouglasEventMap {
   "audit:ingest:rejected": AuditIngestTelemetryEventPayload;
   "audit:ingest:fallback": AuditIngestTelemetryEventPayload;
   "audit:ingest:failed": AuditIngestTelemetryEventPayload;
+  "mission:created": MissionLifecycleEventPayload;
+  "mission:validated": MissionLifecycleEventPayload;
+  "mission:planned": MissionLifecycleEventPayload;
+  "mission:assigned": MissionLifecycleEventPayload;
+  "mission:started": MissionLifecycleEventPayload;
+  "mission:progress": MissionLifecycleEventPayload;
+  "mission:completed": MissionLifecycleEventPayload;
+  "mission:failed": MissionLifecycleEventPayload;
+  "mission:cancelled": MissionLifecycleEventPayload;
+  "mission:duplicate_rejected": MissionLifecycleEventPayload;
+  "agent:registered": AgentOperationalEventPayload;
+  "agent:assigned": AgentOperationalEventPayload;
+  "agent:execution_started": AgentOperationalEventPayload;
+  "agent:progress": AgentOperationalEventPayload;
+  "agent:execution_completed": AgentOperationalEventPayload;
+  "agent:execution_failed": AgentOperationalEventPayload;
+  "agent:execution_cancelled": AgentOperationalEventPayload;
+  "agent:assignment_rejected": AgentOperationalEventPayload;
 }
 
 export type EventTopic = keyof DouglasEventMap;
@@ -238,6 +260,28 @@ export const EVENT_CATEGORIES: Record<EventCategory, EventTopic[]> = {
   automation: ["automation:triggered", "automation:completed"],
   calma: ["calma:session:started", "calma:mindfulness:completed"],
   youtube: ["youtube:video:published", "youtube:upload:started"],
+  missions: [
+    "mission:created",
+    "mission:validated",
+    "mission:planned",
+    "mission:assigned",
+    "mission:started",
+    "mission:progress",
+    "mission:completed",
+    "mission:failed",
+    "mission:cancelled",
+    "mission:duplicate_rejected",
+  ],
+  agents: [
+    "agent:registered",
+    "agent:assigned",
+    "agent:execution_started",
+    "agent:progress",
+    "agent:execution_completed",
+    "agent:execution_failed",
+    "agent:execution_cancelled",
+    "agent:assignment_rejected",
+  ],
 };
 
 export const TOPIC_CATEGORY: Record<EventTopic, EventCategory> = {
@@ -274,4 +318,22 @@ export const TOPIC_CATEGORY: Record<EventTopic, EventCategory> = {
   "audit:ingest:rejected": "internal",
   "audit:ingest:fallback": "internal",
   "audit:ingest:failed": "internal",
+  "mission:created": "missions",
+  "mission:validated": "missions",
+  "mission:planned": "missions",
+  "mission:assigned": "missions",
+  "mission:started": "missions",
+  "mission:progress": "missions",
+  "mission:completed": "missions",
+  "mission:failed": "missions",
+  "mission:cancelled": "missions",
+  "mission:duplicate_rejected": "missions",
+  "agent:registered": "agents",
+  "agent:assigned": "agents",
+  "agent:execution_started": "agents",
+  "agent:progress": "agents",
+  "agent:execution_completed": "agents",
+  "agent:execution_failed": "agents",
+  "agent:execution_cancelled": "agents",
+  "agent:assignment_rejected": "agents",
 };

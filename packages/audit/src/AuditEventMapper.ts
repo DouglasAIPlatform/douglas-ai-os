@@ -391,6 +391,90 @@ function mapDiagnosticsEvent(
   return { entries, state: nextState };
 }
 
+const MISSION_AUDIT_ACTIONS: Record<string, AuditAction> = {
+  "mission:created": "mission_created",
+  "mission:validated": "mission_validated",
+  "mission:planned": "mission_planned",
+  "mission:assigned": "mission_assigned",
+  "mission:started": "mission_started",
+  "mission:progress": "mission_progress",
+  "mission:completed": "mission_completed",
+  "mission:failed": "mission_failed",
+  "mission:cancelled": "mission_cancelled",
+  "mission:duplicate_rejected": "mission_duplicate_rejected",
+};
+
+function mapMissionEvent(event: Event<EventTopic>): Omit<AuditEntry, "id" | "timestamp"> | null {
+  const payload = asRecord(event.payload);
+
+  if (payload.audited === true) {
+    return null;
+  }
+
+  const action = MISSION_AUDIT_ACTIONS[event.topic];
+  if (!action) return null;
+
+  const resolved = resolveAuditActor("mission-execution", "system");
+  const correlation = buildCorrelationMetadata(event, payload);
+  const missionId = String(payload.missionId ?? "unknown-mission");
+  const message =
+    typeof payload.summary === "string"
+      ? payload.summary.slice(0, 240)
+      : `${event.topic} · ${String(payload.status ?? "unknown")}`;
+
+  const severity: AuditSeverity =
+    event.topic === "mission:failed" || event.topic === "mission:duplicate_rejected"
+      ? "warning"
+      : "info";
+
+  return baseEntry(
+    event,
+    action,
+    "missions",
+    severity,
+    missionId,
+    resolved.actor,
+    resolved.role,
+    message,
+    {
+      ...correlation,
+      executionId: payload.executionId,
+      status: payload.status,
+      progress: payload.progress,
+      errorCode: payload.errorCode,
+      actorId: "mission-execution",
+    },
+  );
+}
+
+function mapAgentOperationalEvent(
+  event: Event<EventTopic>,
+): Omit<AuditEntry, "id" | "timestamp"> | null {
+  const payload = asRecord(event.payload);
+  if (payload.audited === true) return null;
+
+  const resolved = resolveAuditActor("operational-agent", "system");
+  const correlation = buildCorrelationMetadata(event, payload);
+  const agentId = String(payload.agentId ?? "unknown-agent");
+  const message = String(payload.summary ?? payload.reason ?? event.topic);
+
+  return baseEntry(
+    event,
+    "readiness_status_changed",
+    "platform",
+    event.topic.includes("failed") || event.topic.includes("rejected") ? "warning" : "info",
+    agentId,
+    resolved.actor,
+    resolved.role,
+    message.slice(0, 240),
+    {
+      ...correlation,
+      agentTopic: event.topic,
+      actorId: "operational-agent",
+    },
+  );
+}
+
 export function mapEventToAuditEntries(
   event: Event,
   state: AuditMapperState,
@@ -414,6 +498,16 @@ export function mapEventToAuditEntries(
     return mapDiagnosticsEvent(event, state);
   }
 
+  if (event.topic.startsWith("mission:")) {
+    const entry = mapMissionEvent(event);
+    return { entries: entry ? [entry] : [], state };
+  }
+
+  if (event.topic.startsWith("agent:")) {
+    const entry = mapAgentOperationalEvent(event);
+    return { entries: entry ? [entry] : [], state };
+  }
+
   return { entries: [], state };
 }
 
@@ -426,7 +520,9 @@ export function isAuditedEventTopic(topic: string): boolean {
     topic.startsWith("security:action:") ||
     topic.startsWith("auth:operator:handoff_") ||
     topic.startsWith("runtime:action:") ||
-    topic.startsWith("diagnostics:report:")
+    topic.startsWith("diagnostics:report:") ||
+    topic.startsWith("mission:") ||
+    topic.startsWith("agent:")
   );
 }
 

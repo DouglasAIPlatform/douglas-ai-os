@@ -1,5 +1,5 @@
-import { EmptyRoutePage } from "@/components/routing/EmptyRoutePage";
+import { AgentsPageContent } from "@/features/agents/AgentsPageContent";
 
 export default function AgentsPage() {
-  return <EmptyRoutePage routeId="agents" />;
+  return <AgentsPageContent />;
 }

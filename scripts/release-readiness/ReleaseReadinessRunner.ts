@@ -44,6 +44,31 @@ import {
 } from "./OwnerAdminRlsChecks.ts";
 import { checkRBACCatalogDrift } from "./RBACCatalogDriftChecks.ts";
 import {
+  checkStagingBootstrapDocsPresent,
+  checkStagingNoMocksAllowed,
+  checkStagingProfilePresent,
+  checkStagingRequiresEdgeAudit,
+  checkStagingRequiresRealAuth,
+  checkStagingScriptAvailable,
+} from "./StagingEnvironmentChecks.ts";
+import {
+  checkMissionEventsTyped,
+  checkMissionExecutionCoordinatorPresent,
+  checkMissionExecutionDocsPresent,
+  checkMissionExecutionWidgetIntegrated,
+  checkMissionIdempotencyGuardPresent,
+  checkMissionNoExternalAiDependency,
+  runMissionExecutionTests,
+} from "./MissionExecutionChecks.ts";
+import {
+  checkAgentEventsTyped,
+  checkAgentManifestSafeCapabilities,
+  checkAgentRuntimeDocsPresent,
+  checkMissionAgentIntegrationPresent,
+  checkSystemDiagnosticsAgentRegistered,
+  runOperationalAgentTests,
+} from "./AgentRuntimeChecks.ts";
+import {
   collectVersionTargets,
   loadReleaseManifest,
 } from "../release-versioning/VersionConsistency.ts";
@@ -1139,6 +1164,25 @@ export function runReleaseReadiness(
   checks.push(checkInactiveProfileRlsBlocked(repoRoot));
   checks.push(checkNoPermissiveRbacPolicies(repoRoot));
   checks.push(checkRBACCatalogDrift(repoRoot));
+  checks.push(checkStagingProfilePresent(repoRoot));
+  checks.push(checkStagingNoMocksAllowed(repoRoot));
+  checks.push(checkStagingRequiresRealAuth(repoRoot));
+  checks.push(checkStagingRequiresEdgeAudit(repoRoot));
+  checks.push(checkStagingBootstrapDocsPresent(repoRoot));
+  checks.push(checkStagingScriptAvailable(repoRoot));
+  checks.push(checkMissionExecutionCoordinatorPresent(repoRoot));
+  checks.push(checkMissionIdempotencyGuardPresent(repoRoot));
+  checks.push(checkMissionEventsTyped(repoRoot));
+  checks.push(checkMissionExecutionWidgetIntegrated(repoRoot));
+  checks.push(runMissionExecutionTests(repoRoot));
+  checks.push(checkMissionNoExternalAiDependency(repoRoot));
+  checks.push(checkMissionExecutionDocsPresent(repoRoot));
+  checks.push(checkSystemDiagnosticsAgentRegistered(repoRoot));
+  checks.push(checkAgentManifestSafeCapabilities(repoRoot));
+  checks.push(checkMissionAgentIntegrationPresent(repoRoot));
+  checks.push(checkAgentEventsTyped(repoRoot));
+  checks.push(runOperationalAgentTests(repoRoot));
+  checks.push(checkAgentRuntimeDocsPresent(repoRoot));
   checks.push(runRbacVerificationTests(repoRoot));
 
   const preliminary = buildReleaseReadinessReport(checks, []);

@@ -17,6 +17,7 @@ import {
 import { HealthIntegration } from "@/features/platform-health/HealthIntegration";
 import { AuditIntegration } from "@/features/platform-audit";
 import { SecurityIntegration } from "@/features/platform-security/SecurityIntegration";
+import { MissionExecutionIntegration } from "@/features/mission-control/MissionExecutionIntegration";
 import { platformVersion } from "@/lib/mock-data";
 
 interface RuntimeIntegrationProps {
@@ -53,7 +54,9 @@ export function RuntimeIntegration({ children }: RuntimeIntegrationProps) {
       <RuntimeControlProvider publishActionEvent={publishActionEvent}>
         <SecurityIntegration>
           <AuditIntegration>
-            <HealthIntegration>{children}</HealthIntegration>
+            <HealthIntegration>
+              <MissionExecutionIntegration>{children}</MissionExecutionIntegration>
+            </HealthIntegration>
           </AuditIntegration>
         </SecurityIntegration>
       </RuntimeControlProvider>

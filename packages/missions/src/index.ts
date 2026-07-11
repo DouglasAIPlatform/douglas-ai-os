@@ -61,3 +61,34 @@ export {
 
 export { useMissions } from "./useMissions";
 export { MissionBoardPanel } from "./MissionBoardPanel";
+
+export type {
+  MissionExecutionRequest,
+  MissionExecutionPlan,
+  MissionExecutionStep,
+  MissionExecutionContext,
+  MissionExecutionResult,
+  MissionExecutionStatus,
+  MissionOperatorRole,
+  MissionExecutionPersistenceAdapter,
+  MissionExecutionCoordinatorOptions,
+  MissionExecutionDuplicateDecision,
+  MissionExecutionCapability,
+} from "./execution";
+
+export {
+  MissionExecutionCoordinator,
+  MissionExecutionRegistry,
+  MissionExecutionIdempotencyGuard,
+  InMemoryMissionExecutionPersistence,
+  CompositeMissionExecutionPersistence,
+  mapExecutionStatusToMissionStatus,
+  canPerformMissionExecution,
+  missionExecutionAccessReason,
+  OPERATIONAL_DIAGNOSTIC_MISSION_TYPE,
+  OPERATIONAL_DIAGNOSTIC_MISSION_TITLE,
+  OPERATIONAL_DIAGNOSTIC_AGENT_ID,
+  abbreviateCorrelationId,
+  MISSION_EXECUTION_STATUS_LABELS,
+  createDefaultMissionExecutorRegistry,
+} from "./execution";

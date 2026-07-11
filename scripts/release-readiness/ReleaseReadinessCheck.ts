@@ -40,7 +40,26 @@ export type ReleaseReadinessCheckId =
   | "admin_cannot_promote_owner"
   | "inactive_profile_rls_blocked"
   | "no_permissive_rbac_policies"
-  | "rbac_catalog_drift_check";
+  | "rbac_catalog_drift_check"
+  | "staging_profile_present"
+  | "staging_no_mocks_allowed"
+  | "staging_requires_real_auth"
+  | "staging_requires_edge_audit"
+  | "staging_bootstrap_docs_present"
+  | "staging_check_script_available"
+  | "mission_execution_coordinator_present"
+  | "mission_idempotency_guard_present"
+  | "mission_events_typed"
+  | "mission_execution_widget_integrated"
+  | "mission_execution_tests_passing"
+  | "mission_no_external_ai_dependency"
+  | "mission_execution_docs_present"
+  | "system_diagnostics_agent_registered"
+  | "agent_manifest_safe_capabilities"
+  | "mission_agent_integration_present"
+  | "agent_events_typed"
+  | "operational_agent_tests_passing"
+  | "agent_runtime_docs_present";
 
 export interface ReleaseReadinessCheck {
   id: ReleaseReadinessCheckId;
@@ -93,6 +112,25 @@ export const RELEASE_READINESS_CHECK_LABELS: Record<ReleaseReadinessCheckId, str
   inactive_profile_rls_blocked: "Profile inativo bloqueado em RLS",
   no_permissive_rbac_policies: "Sem policies RBAC permissivas",
   rbac_catalog_drift_check: "Catálogo RBAC alinhado (drift check)",
+  staging_profile_present: "Perfil staging presente",
+  staging_no_mocks_allowed: "Staging não permite mocks",
+  staging_requires_real_auth: "Staging exige auth real",
+  staging_requires_edge_audit: "Staging exige audit Edge Function",
+  staging_bootstrap_docs_present: "Docs staging bootstrap presentes",
+  staging_check_script_available: "Script staging:check disponível",
+  mission_execution_coordinator_present: "MissionExecutionCoordinator presente",
+  mission_idempotency_guard_present: "Idempotency guard de missões presente",
+  mission_events_typed: "Eventos mission:* tipados",
+  mission_execution_widget_integrated: "MissionExecutionWidget no HQ",
+  mission_execution_tests_passing: "Testes de execução de missão",
+  mission_no_external_ai_dependency: "Sem IA externa obrigatória",
+  mission_execution_docs_present: "Docs mission execution presentes",
+  system_diagnostics_agent_registered: "System Diagnostics Agent registrado",
+  agent_manifest_safe_capabilities: "Capabilities do agente seguras (read-only)",
+  mission_agent_integration_present: "Integração Mission → Agent presente",
+  agent_events_typed: "Eventos agent:* tipados",
+  operational_agent_tests_passing: "Testes operational agent runtime",
+  agent_runtime_docs_present: "Docs operational agent runtime presentes",
 };
 
 /** Migrations mínimas esperadas para release (ordem lexicográfica). */
@@ -126,8 +164,15 @@ export const REQUIRED_RELEASE_DOCS = [
   "docs/architecture/environment-separation.md",
   "docs/architecture/environment-resolution.md",
   "docs/operations/staging-production-environments.md",
+  "docs/operations/staging-bootstrap.md",
+  "docs/operations/staging-validation-checklist.md",
   "docs/engineering/release-versioning.md",
   "docs/operations/release-process.md",
+  "docs/architecture/mission-execution-lifecycle.md",
+  "docs/operations/mission-execution-runbook.md",
+  "docs/agents/system-diagnostics-agent.md",
+  "docs/architecture/operational-agent-runtime.md",
+  "docs/operations/agent-execution-runbook.md",
   "supabase/functions/audit-ingest/README.md",
 ] as const;
 

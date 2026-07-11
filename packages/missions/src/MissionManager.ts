@@ -156,6 +156,17 @@ export class MissionManager implements IMissionManager {
     return updated;
   }
 
+  fail(id: string, reason?: string): MissionData | undefined {
+    const updated = this.transition(id, "failed");
+    if (updated) {
+      if (reason) {
+        this.timeline.record(id, "note", "Missão falhou", reason);
+      }
+      this.history.record("failed", updated);
+    }
+    return updated;
+  }
+
   archive(id: string): MissionData | undefined {
     const updated = this.transition(id, "archived");
     if (updated) this.history.record("archived", updated);

@@ -47,3 +47,39 @@ export { AgentManager } from "./AgentManager";
 export { AgentContext, type AgentContextValue } from "./AgentContext";
 export { AgentProvider, type AgentProviderProps } from "./AgentProvider";
 export { useAgentFramework } from "./useAgentFramework";
+
+export type {
+  OperationalAgentCapability,
+  AgentRuntimeStatus,
+  OperationalAgentManifest,
+  OperationalAgent,
+  AgentExecutionRequest,
+  AgentExecutionContext,
+  AgentExecutionResult,
+  AgentExecutionError,
+  AgentExecutionReport,
+  AgentSessionMetrics,
+  OperationalPlatformSnapshot,
+  OperationalSnapshotSource,
+  AgentAssignmentDecision,
+  AgentCapabilityMatchResult,
+  OperationalAgentEventPublisher,
+} from "./operational";
+
+export {
+  SYSTEM_DIAGNOSTICS_AGENT_ID,
+  SYSTEM_DIAGNOSTICS_AGENT_MANIFEST,
+  OPERATIONAL_DIAGNOSTIC_REQUIRED_CAPABILITIES,
+  FORBIDDEN_OPERATIONAL_CAPABILITIES,
+  validateAgentCapabilitiesSafe,
+  assertAgentExecutionSafe,
+  isReadOnlyOperationalAgent,
+  AgentCapabilityMatcher,
+  OperationalAgentRegistry,
+  OperationalAgentRuntime,
+  AgentSessionMetricsStore,
+  SystemDiagnosticsAgent,
+  createSystemDiagnosticsAgent,
+  createDeterministicOperationalSnapshot,
+  createEmptyOperationalSnapshot,
+} from "./operational";

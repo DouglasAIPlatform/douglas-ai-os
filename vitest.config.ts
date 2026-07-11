@@ -11,6 +11,8 @@ export default defineConfig({
       "packages/security/src/**/*.rbac.test.ts",
       "packages/supabase/src/**/*.rbac.test.ts",
       "packages/environment/src/**/*.rbac.test.ts",
+      "packages/missions/src/**/*.test.ts",
+      "packages/agents/src/**/*.test.ts",
     ],
     passWithNoTests: false,
   },
@@ -21,6 +23,9 @@ export default defineConfig({
       "@douglas/environment": path.join(repoRoot, "packages/environment/src/index.ts"),
       "@douglas/release": path.join(repoRoot, "packages/release/src/index.ts"),
       "@douglas/security": path.join(repoRoot, "packages/security/src/index.ts"),
+      "@douglas/missions": path.join(repoRoot, "packages/missions/src/index.ts"),
+      "@douglas/agents": path.join(repoRoot, "packages/agents/src/index.ts"),
+      "@douglas/audit": path.join(repoRoot, "packages/audit/src/index.ts"),
     },
   },
 });

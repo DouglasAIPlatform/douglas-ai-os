@@ -16,7 +16,8 @@
     "release:check": "node --experimental-strip-types scripts/release-readiness.ts",
     "release:status": "node --experimental-strip-types scripts/release-status.ts",
     "release:prepare": "node --experimental-strip-types scripts/release-prepare.ts",
-    "rbac:drift-check": "node --experimental-strip-types scripts/rbac-drift-check.ts"
+    "rbac:drift-check": "node --experimental-strip-types scripts/rbac-drift-check.ts",
+    "staging:check": "node --experimental-strip-types scripts/staging-readiness.ts"
   },
   "devDependencies": {
     "turbo": "^2.5.4",

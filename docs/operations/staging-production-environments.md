@@ -69,6 +69,17 @@ Secrets server-side (Edge Functions, CI):
 
 Deploy continua **manual** nesta fase — a plataforma valida, não publica.
 
+## Staging bootstrap (Sprint 5.47)
+
+Fundação operacional para staging real:
+
+- **Perfil:** `StagingEnvironmentProfile` em `@douglas/environment`
+- **Check read-only:** `pnpm staging:check`
+- **HQ widget:** `StagingReadinessWidget` — exibe bootstrap sem URLs/keys
+- **Docs:** [staging-bootstrap.md](./staging-bootstrap.md), [staging-validation-checklist.md](./staging-validation-checklist.md)
+
+Em development local, o widget exibe *"Staging ainda não configurado"* — comportamento esperado, não erro.
+
 ## Sem Supabase configurado
 
 Development funciona sem Supabase — mocks e fallback local permanecem disponíveis. Staging/production exigem Supabase configurado + auth real (validado pelo Safety Gate).
@@ -78,4 +89,6 @@ Development funciona sem Supabase — mocks e fallback local permanecem disponí
 - `docs/architecture/environment-separation.md`
 - `docs/operations/apply-supabase-migrations.md`
 - `docs/operations/production-safety-gate.md`
+- `docs/operations/staging-bootstrap.md`
+- `docs/operations/staging-validation-checklist.md`
 - `.env.example`

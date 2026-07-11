@@ -46,6 +46,20 @@ export {
 } from "./TypedEvents";
 
 export {
+  MISSION_LIFECYCLE_EVENT_TOPICS,
+  buildMissionLifecyclePayload,
+  type MissionLifecycleEventPayload,
+  type MissionLifecycleEventTopic,
+} from "./MissionEventTypes";
+
+export {
+  AGENT_OPERATIONAL_EVENT_TOPICS,
+  buildAgentOperationalPayload,
+  type AgentOperationalEventPayload,
+  type AgentOperationalEventTopic,
+} from "./AgentOperationalEventTypes";
+
+export {
   createEvent,
   isEventOfCategory,
   isEventOfTopic,

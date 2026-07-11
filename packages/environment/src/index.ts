@@ -133,3 +133,42 @@ export function createCoreEnvironmentFromCanonical(
 ): Environment {
   return new Environment(resolvePlatformEnvironment(options));
 }
+
+export type { StagingBootstrapStatus } from "./staging-bootstrap/StagingBootstrapStatus";
+export { STAGING_BOOTSTRAP_STATUS_LABELS } from "./staging-bootstrap/StagingBootstrapStatus";
+
+export type { StagingEnvironmentProfile } from "./staging-bootstrap/StagingEnvironmentProfile";
+export {
+  STAGING_ENVIRONMENT_PROFILE,
+  getStagingEnvironmentProfile,
+} from "./staging-bootstrap/StagingEnvironmentProfile";
+
+export type {
+  StagingReadinessRequirement,
+  StagingReadinessRequirementId,
+  StagingReadinessRequirementScope,
+} from "./staging-bootstrap/StagingReadinessRequirement";
+export { STAGING_READINESS_REQUIREMENTS } from "./staging-bootstrap/StagingReadinessRequirement";
+
+export type { StagingConfigurationSnapshot } from "./staging-bootstrap/StagingConfigurationSnapshot";
+export {
+  buildStagingConfigurationSnapshot,
+  assertStagingSnapshotSafe,
+} from "./staging-bootstrap/StagingConfigurationSnapshot";
+
+export type {
+  StagingReadinessCheckOutcome,
+  StagingReadinessCheckResult,
+  StagingReadinessReport,
+  StagingReadinessStatus,
+} from "./staging-bootstrap/StagingReadinessReport";
+export {
+  buildStagingReadinessReport,
+  formatStagingReadinessReport,
+} from "./staging-bootstrap/StagingReadinessReport";
+
+export type {
+  EvaluateStagingReadinessInput,
+  StagingRuntimeContext,
+} from "./staging-bootstrap/StagingReadinessEvaluator";
+export { evaluateStagingReadiness } from "./staging-bootstrap/StagingReadinessEvaluator";
