@@ -48,6 +48,7 @@ Disponível para owner/admin enquanto status é `assigned` ou `running`.
 
 ```bash
 pnpm exec vitest run packages/missions/src/execution/mission-execution.test.ts
+pnpm exec vitest run packages/missions/src/mission-status-transition.test.ts
 pnpm test
 pnpm validate
 pnpm release:check
@@ -62,7 +63,16 @@ pnpm release:check
 | Botão executar desabilitado | Verifique role (viewer não executa) |
 | "Coordinator indisponível" | Confirme `MissionExecutionIntegration` no AppShell |
 | Timeline vazia | Execute uma missão; timeline preenche após progresso |
-| Eventos sem audit duplicado | Esperado — coordinator usa `audited: true` |
+| Entradas duplicadas `active → active` | Corrigido em 5.49.1 — no-op guard |
+| Eventos sem audit duplicado | Esperado — `audited: true` bloqueia mapper; audit via `appendAudit` |
+| Progresso sem audit | Esperado — `mission:progress` não gera audit explícito |
+
+## Audit exactly-once
+
+- Lifecycle de missão: audit via `appendAudit` no coordinator (HQ conecta ao `auditLog`)
+- Lifecycle de agente: audit via wrapper em `MissionExecutionIntegration` ao publicar `agent:*`
+- Event Bus: payloads com `audited: true` — mapper ignora (anti-loop)
+- Verifique audit trail no widget Audit — uma entrada por marco (`mission_completed`, `agent_execution_completed`, etc.)
 
 ## Limitações (pré-Supabase)
 

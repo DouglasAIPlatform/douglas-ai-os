@@ -5,6 +5,8 @@ import {
   SYSTEM_DIAGNOSTICS_AGENT_ID,
   type OperationalAgentEventPublisher,
 } from "@douglas/agents";
+import type { AuditAction, AuditEntry } from "@douglas/audit";
+import { useAudit } from "@douglas/audit";
 import type { EventTopic } from "@douglas/events";
 import { useEventBus } from "@douglas/events";
 import {
@@ -12,6 +14,7 @@ import {
   MissionExecutionCoordinator,
   MissionManager,
   MissionProvider,
+  type MissionExecutionAuditEntry,
 } from "@douglas/missions";
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useState } from "react";
@@ -22,8 +25,63 @@ interface MissionExecutionIntegrationProps {
   children: ReactNode;
 }
 
+const AGENT_AUDIT_TOPICS: Record<string, AuditAction> = {
+  "agent:assigned": "agent_assigned",
+  "agent:execution_started": "agent_execution_started",
+  "agent:execution_completed": "agent_execution_completed",
+  "agent:execution_failed": "agent_execution_failed",
+  "agent:execution_cancelled": "agent_execution_cancelled",
+  "agent:assignment_rejected": "agent_assignment_rejected",
+};
+
+function recordExplicitAudit(
+  auditLog: ReturnType<typeof useAudit>["auditLog"],
+  entry: MissionExecutionAuditEntry,
+): void {
+  auditLog.record({
+    actor: "mission-execution",
+    role: "system",
+    source: "missions",
+    action: entry.action as AuditAction,
+    target: String(entry.metadata.missionId ?? "mission"),
+    severity: entry.action.includes("failed") || entry.action.includes("rejected") ? "warning" : "info",
+    message: entry.message.slice(0, 240),
+    metadata: entry.metadata,
+  });
+}
+
+function recordAgentAudit(
+  auditLog: ReturnType<typeof useAudit>["auditLog"],
+  topic: string,
+  payload: Record<string, unknown>,
+): void {
+  const action = AGENT_AUDIT_TOPICS[topic];
+  if (!action) return;
+
+  const entry: Omit<AuditEntry, "id" | "timestamp"> = {
+    actor: "operational-agent",
+    role: "system",
+    source: "missions",
+    action,
+    target: String(payload.agentId ?? "agent"),
+    severity:
+      topic.includes("failed") || topic.includes("rejected") || topic.includes("cancelled")
+        ? "warning"
+        : "info",
+    message: String(payload.summary ?? payload.reason ?? topic).slice(0, 240),
+    metadata: {
+      ...payload,
+      agentTopic: topic,
+      auditPath: "explicit_append",
+    },
+  };
+
+  auditLog.record(entry);
+}
+
 export function MissionExecutionIntegration({ children }: MissionExecutionIntegrationProps) {
   const { publish } = useEventBus();
+  const { auditLog } = useAudit();
   const snapshotSource = useOperationalSnapshotSource();
   const [manager] = useState(() => new MissionManager());
 
@@ -35,8 +93,9 @@ export function MissionExecutionIntegration({ children }: MissionExecutionIntegr
             ? { correlationId: payload.correlationId }
             : undefined,
       });
+      recordAgentAudit(auditLog, topic, payload);
     },
-    [publish],
+    [auditLog, publish],
   );
 
   const agentRuntime = useMemo(
@@ -56,6 +115,13 @@ export function MissionExecutionIntegration({ children }: MissionExecutionIntegr
     [publish],
   );
 
+  const appendMissionAudit = useCallback(
+    (entry: MissionExecutionAuditEntry) => {
+      recordExplicitAudit(auditLog, entry);
+    },
+    [auditLog],
+  );
+
   const coordinator = useMemo(
     () =>
       new MissionExecutionCoordinator({
@@ -64,9 +130,9 @@ export function MissionExecutionIntegration({ children }: MissionExecutionIntegr
         agentRuntime,
         snapshotSource,
         publishEvent: publishMissionEvent,
-        appendAudit: () => {},
+        appendAudit: appendMissionAudit,
       }),
-    [agentRuntime, manager, publishMissionEvent, snapshotSource],
+    [agentRuntime, appendMissionAudit, manager, publishMissionEvent, snapshotSource],
   );
 
   return (

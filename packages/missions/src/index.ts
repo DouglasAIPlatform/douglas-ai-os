@@ -74,6 +74,7 @@ export type {
   MissionExecutionCoordinatorOptions,
   MissionExecutionDuplicateDecision,
   MissionExecutionCapability,
+  MissionExecutionAuditEntry,
 } from "./execution";
 
 export {
@@ -91,4 +92,8 @@ export {
   abbreviateCorrelationId,
   MISSION_EXECUTION_STATUS_LABELS,
   createDefaultMissionExecutorRegistry,
+  evaluateMissionStatusTransition,
+  VALID_MISSION_BOARD_TRANSITIONS,
+  shouldAuditMissionTopic,
+  buildMissionAuditEntry,
 } from "./execution";

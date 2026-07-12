@@ -12,6 +12,7 @@ export default defineConfig({
       "packages/supabase/src/**/*.rbac.test.ts",
       "packages/environment/src/**/*.rbac.test.ts",
       "packages/missions/src/**/*.test.ts",
+      "packages/missions/src/mission-status-transition.test.ts",
       "packages/agents/src/**/*.test.ts",
     ],
     passWithNoTests: false,

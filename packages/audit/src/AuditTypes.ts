@@ -26,7 +26,13 @@ export type AuditAction =
   | "mission_completed"
   | "mission_failed"
   | "mission_cancelled"
-  | "mission_duplicate_rejected";
+  | "mission_duplicate_rejected"
+  | "agent_assigned"
+  | "agent_execution_started"
+  | "agent_execution_completed"
+  | "agent_execution_failed"
+  | "agent_execution_cancelled"
+  | "agent_assignment_rejected";
 
 export interface AuditEntry {
   id: string;
@@ -88,6 +94,12 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   mission_failed: "Missão falhou",
   mission_cancelled: "Missão cancelada",
   mission_duplicate_rejected: "Execução duplicada rejeitada",
+  agent_assigned: "Agente atribuído",
+  agent_execution_started: "Execução do agente iniciada",
+  agent_execution_completed: "Execução do agente concluída",
+  agent_execution_failed: "Execução do agente falhou",
+  agent_execution_cancelled: "Execução do agente cancelada",
+  agent_assignment_rejected: "Atribuição de agente rejeitada",
 };
 
 export const AUDITED_EVENT_TOPICS = [

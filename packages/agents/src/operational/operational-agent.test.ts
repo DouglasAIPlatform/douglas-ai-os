@@ -161,6 +161,37 @@ describe("Operational Agent Runtime", () => {
     expect(result.report.alertModules).toContain("X");
   });
 
+  it("agent:execution_completed auditado exatamente uma vez via caminho explícito", async () => {
+    const auditActions: string[] = [];
+    const runtime = new OperationalAgentRuntime({
+      publish: (topic, payload) => {
+        if (topic === "agent:execution_completed") {
+          auditActions.push("agent_execution_completed");
+        }
+        void payload;
+      },
+    });
+    const snapshotSource = {
+      collect: () => createDeterministicOperationalSnapshot(),
+    };
+
+    await runtime.execute(
+      {
+        agentId: SYSTEM_DIAGNOSTICS_AGENT_ID,
+        executionId: "exec-audit-agent",
+        correlationId: "corr-audit-agent",
+        requestId: "req-audit-agent",
+        missionId: "mission-audit-agent",
+        missionType: "operational_diagnostic",
+        createdBy: "op-1",
+      },
+      snapshotSource,
+      { instant: true },
+    );
+
+    expect(auditActions.filter((a) => a === "agent_execution_completed")).toHaveLength(1);
+  });
+
   it("não possui capabilities perigosas no manifest", () => {
     const forbidden = ["deploy", "shell:execute", "secret:access", "migration"];
     for (const capability of SYSTEM_DIAGNOSTICS_AGENT_MANIFEST.capabilities) {

@@ -36,6 +36,35 @@ O `MissionExecutionCoordinator` orquestra o ciclo completo sem conectar serviço
 
 Estados legados (`planned`, `active`, `blocked`, `completed`) permanecem no contrato público do `@douglas/missions`.
 
+## No-op guard do Mission Board (Patch 5.49.1)
+
+`MissionStatusTransitionPolicy` avalia cada mudança de status do board antes de persistir:
+
+| Decisão | Comportamento |
+|---------|---------------|
+| `noop` | Estado igual (ex.: `active → active`) — sem timeline, sem `updatedAt`, sem evento |
+| `apply` | Transição válida — uma entrada de timeline |
+| `reject` | Transição inválida — operação ignorada (sem regressão silenciosa) |
+
+Transições válidas preservadas:
+
+- `draft → planned`
+- `planned → active`
+- `active → blocked` | `active → completed`
+- `blocked → active` | `blocked → completed`
+
+O coordinator usa `syncMissionBoard()` com esta policy — elimina duplicatas causadas por `start()` + `syncMissionBoard()` ou `complete()` + `syncMissionBoard()` na mesma execução.
+
+## Timeline mission-centric (Patch 5.49.1)
+
+Marcos explícitos na timeline (tipo `note`):
+
+- Agente atribuído
+- Execução iniciada
+- Missão concluída / falhou / cancelada
+
+Eventos `mission:progress` atualizam progresso no board, mas **não** geram audit explícito (volume controlado).
+
 ## Identidade e correlação
 
 Cada execução possui:
@@ -64,9 +93,14 @@ Tópicos tipados em `DouglasEventMap`:
 
 Payload mínimo: `MissionLifecycleEventPayload`. Eventos emitidos pelo coordinator incluem `audited: true` para evitar loop com `AuditEventMapper`.
 
-## Auditoria
+## Auditoria exactly-once (Patch 5.49.1)
 
-O coordinator registra audit direto via `appendAudit`. Eventos com `audited: true` são ignorados pelo mapper. Resumos limitados a 240 caracteres — sem persistir resultado completo.
+Estratégia de duas camadas:
+
+1. **Event Bus** — eventos `mission:*` e `agent:*` publicados com `audited: true`. O `AuditEventMapper` retorna `null` para estes payloads, impedindo loop Event Bus → Audit → Event Bus.
+2. **Caminho explícito** — `MissionExecutionCoordinator.appendAudit()` registra lifecycle (`mission:created` … `mission:cancelled`, exceto `mission:progress`). No HQ, `MissionExecutionIntegration` conecta `appendAudit` ao `auditLog.record()`. Eventos `agent:*` de lifecycle são auditados no wrapper de publish do runtime.
+
+Cada evento operacional relevante gera **no máximo uma** entrada de audit. Progresso (`mission:progress`, `agent:progress`) publica no Event Bus para monitoramento, mas não duplica audit.
 
 ## Persistência
 
@@ -84,8 +118,8 @@ Implementações atuais:
 
 Tipo: `operational_diagnostic`  
 Título: *Executar diagnóstico operacional da Douglas AI OS*  
-Agente: `agent:platform-diagnostics`  
-Executor determinístico — 4 passos simulados, sem IA externa.
+Agente: `system-diagnostics-agent`  
+Executor determinístico — passos read-only via Operational Agent Runtime, sem IA externa.
 
 ## Adicionar novos tipos de missão
 
@@ -101,6 +135,8 @@ Executor determinístico — 4 passos simulados, sem IA externa.
 |--------|------------------|
 | `MissionExecutionCoordinator` | Orquestração |
 | `MissionExecutionIdempotencyGuard` | Duplicidade |
-| `DiagnosticMissionExecutor` | Demo determinística |
+| `MissionStatusTransitionPolicy` | No-op guard do board |
+| `MissionExecutionAuditPolicy` | Exactly-once audit lifecycle |
+| `DiagnosticMissionExecutor` | Missão diagnóstica via agent runtime |
 | `MissionExecutionWidget` | UI Headquarters |
-| `MissionExecutionIntegration` | Provider + Event Bus |
+| `MissionExecutionIntegration` | Provider + Event Bus + audit explícito |

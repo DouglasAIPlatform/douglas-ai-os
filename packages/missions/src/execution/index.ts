@@ -60,3 +60,16 @@ export {
   type MissionExecutionCapability,
   type MissionExecutionAccessInput,
 } from "./MissionExecutionAccessPolicy";
+
+export {
+  evaluateMissionStatusTransition,
+  VALID_MISSION_BOARD_TRANSITIONS,
+  type MissionStatusTransitionDecision,
+  type MissionStatusTransitionResult,
+} from "../MissionStatusTransitionPolicy";
+
+export {
+  shouldAuditMissionTopic,
+  buildMissionAuditEntry,
+  MISSION_LIFECYCLE_AUDIT_TOPICS,
+} from "./MissionExecutionAuditPolicy";

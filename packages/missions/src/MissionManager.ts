@@ -3,6 +3,7 @@ import { MissionBoard } from "./MissionBoard";
 import { MissionHistory } from "./MissionHistory";
 import { MissionProgress } from "./MissionProgress";
 import { MissionTimeline } from "./MissionTimeline";
+import { evaluateMissionStatusTransition } from "./MissionStatusTransitionPolicy";
 import type {
   MissionData,
   MissionFilter,
@@ -63,6 +64,15 @@ export class MissionManager implements IMissionManager {
     const current = this.repository.get(id);
     if (!current) return undefined;
 
+    const nextStep = patch.currentStep ?? current.progress.currentStep;
+    const nextPercent = patch.percent ?? current.progress.percent;
+    if (
+      nextPercent === current.progress.percent &&
+      nextStep === current.progress.currentStep
+    ) {
+      return current;
+    }
+
     const nextProgress = this.progress.update(current.progress, patch);
     const updated = this.repository.update(id, { progress: nextProgress });
     if (!updated) return undefined;
@@ -105,7 +115,24 @@ export class MissionManager implements IMissionManager {
     const current = this.repository.get(id);
     if (!current) return undefined;
 
-    const updated = this.repository.update(id, { status });
+    const evaluation = evaluateMissionStatusTransition(current.status, status);
+    if (evaluation.decision === "noop") {
+      return current;
+    }
+    if (evaluation.decision === "reject") {
+      return undefined;
+    }
+
+    const patch: Partial<MissionData> = { status };
+    if (status === "active" && !current.startedAt) {
+      patch.startedAt = new Date().toISOString();
+    }
+    if (status === "completed") {
+      patch.completedAt = new Date().toISOString();
+      patch.progress = this.progress.update(current.progress, { percent: 100 });
+    }
+
+    const updated = this.repository.update(id, patch);
     if (!updated) return undefined;
 
     this.timeline.record(
@@ -119,31 +146,16 @@ export class MissionManager implements IMissionManager {
   }
 
   start(id: string): MissionData | undefined {
-    const updated = this.repository.update(id, {
-      status: "active",
-      startedAt: new Date().toISOString(),
-    });
+    const updated = this.transition(id, "active");
     if (!updated) return undefined;
-
     this.history.record("started", updated);
-    this.timeline.record(id, "status_change", "Missão iniciada");
     return updated;
   }
 
   complete(id: string): MissionData | undefined {
-    const current = this.repository.get(id);
-    if (!current) return undefined;
-
-    const nextProgress = this.progress.update(current.progress, { percent: 100 });
-    const updated = this.repository.update(id, {
-      status: "completed",
-      completedAt: new Date().toISOString(),
-      progress: nextProgress,
-    });
+    const updated = this.transition(id, "completed");
     if (!updated) return undefined;
-
     this.history.record("completed", updated);
-    this.timeline.record(id, "status_change", "Missão concluída");
     return updated;
   }
 
@@ -157,6 +169,17 @@ export class MissionManager implements IMissionManager {
   }
 
   fail(id: string, reason?: string): MissionData | undefined {
+    const current = this.repository.get(id);
+    if (!current) return undefined;
+
+    const evaluation = evaluateMissionStatusTransition(current.status, "failed");
+    if (evaluation.decision === "noop") {
+      if (reason) {
+        this.timeline.record(id, "note", "Missão falhou", reason);
+      }
+      return current;
+    }
+
     const updated = this.transition(id, "failed");
     if (updated) {
       if (reason) {

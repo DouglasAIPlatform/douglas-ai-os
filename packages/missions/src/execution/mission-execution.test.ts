@@ -15,6 +15,7 @@ import {
   MissionExecutionIdempotencyGuard,
   MissionExecutionRegistry,
   OPERATIONAL_DIAGNOSTIC_MISSION_TYPE,
+  shouldAuditMissionTopic,
 } from "./index";
 
 function createCoordinator(overrides?: {
@@ -248,6 +249,63 @@ describe("MissionExecutionCoordinator", () => {
 
     const mapped = mapEventToAuditEntries(event, createAuditMapperState());
     expect(mapped.entries).toHaveLength(0);
+  });
+
+  it("mission:completed auditado exatamente uma vez via appendAudit", async () => {
+    const auditActions: string[] = [];
+    const { coordinator } = createCoordinator({
+      appendAudit: (entry) => auditActions.push(entry.action),
+    });
+
+    await coordinator.execute(diagnosticRequest(coordinator), { instant: true });
+
+    const completedAudits = auditActions.filter((action) => action === "mission_completed");
+    expect(completedAudits).toHaveLength(1);
+  });
+
+  it("mission:progress não gera audit explícito", () => {
+    expect(shouldAuditMissionTopic("mission:progress")).toBe(false);
+    expect(shouldAuditMissionTopic("mission:completed")).toBe(true);
+  });
+
+  it("fluxo completo conclui em 100% sem entradas no-op de board", async () => {
+    const { coordinator, manager } = createCoordinator();
+    const result = await coordinator.execute(diagnosticRequest(coordinator), { instant: true });
+
+    expect(result.success).toBe(true);
+    expect(result.context.progress).toBe(100);
+    expect(manager.get(result.context.missionId)?.status).toBe("completed");
+
+    const statusChanges = manager
+      .getTimeline()
+      .getByMissionId(result.context.missionId)
+      .filter((entry) => entry.type === "status_change");
+
+    for (const entry of statusChanges) {
+      const match = entry.description?.match(/^(\w+) → (\w+)$/);
+      if (match) {
+        expect(match[1]).not.toBe(match[2]);
+      }
+    }
+  });
+
+  it("nenhuma recursão de audit quando evento e appendAudit coexistem", async () => {
+    const auditFromAppend: string[] = [];
+    const auditFromMapper: string[] = [];
+
+    const { coordinator } = createCoordinator({
+      publishEvent: (topic, payload) => {
+        const event = createEvent(topic, "missions", payload, {});
+        const mapped = mapEventToAuditEntries(event, createAuditMapperState());
+        mapped.entries.forEach((entry) => auditFromMapper.push(entry.action));
+      },
+      appendAudit: (entry) => auditFromAppend.push(entry.action),
+    });
+
+    await coordinator.execute(diagnosticRequest(coordinator), { instant: true });
+
+    expect(auditFromMapper).toHaveLength(0);
+    expect(auditFromAppend.filter((a) => a === "mission_completed")).toHaveLength(1);
   });
 
   it("idempotency guard detecta duplicidade", () => {

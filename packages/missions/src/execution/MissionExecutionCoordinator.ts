@@ -22,6 +22,10 @@ import {
   type MissionExecutionPersistenceAdapter,
 } from "./MissionExecutionPersistenceAdapter";
 import { mapExecutionStatusToMissionStatus } from "./MissionExecutionStatusMapper";
+import {
+  buildMissionAuditEntry,
+  shouldAuditMissionTopic,
+} from "./MissionExecutionAuditPolicy";
 import type {
   MissionExecutionContext,
   MissionExecutionRequest,
@@ -253,11 +257,12 @@ export class MissionExecutionCoordinator {
       context.assignedAgentId = plan.assignedAgentId;
       context = await this.transition(context, "assigned", "mission:assigned");
       this.syncMissionBoard(context);
+      this.recordTimelineMilestone(context.missionId, "assigned", plan.assignedAgentId);
 
       context = await this.transition(context, "running", "mission:started");
       context.startedAt = nowIso();
-      this.manager.start(missionId);
       this.syncMissionBoard(context);
+      this.recordTimelineMilestone(context.missionId, "started");
 
       const abortController = new AbortController();
       this.abortControllers.set(request.executionId, abortController);
@@ -277,13 +282,7 @@ export class MissionExecutionCoordinator {
           this.registry.update(context);
           void this.persistence.save(context);
           this.manager.updateProgress(missionId, { percent: progress, currentStep: stepId });
-          this.manager.getTimeline().record(
-            missionId,
-            "progress_update",
-            label,
-            `${progress}%`,
-          );
-          this.emit("mission:progress", context, { summary: label });
+          this.emitProgress(context, label);
         },
       });
 
@@ -306,8 +305,8 @@ export class MissionExecutionCoordinator {
       context = await this.transition(context, "completed", "mission:completed", {
         summary: executorResult.summary,
       });
-      this.manager.complete(missionId);
       this.syncMissionBoard(context);
+      this.recordTimelineMilestone(context.missionId, "completed", executorResult.summary);
 
       const result: MissionExecutionResult = {
         context,
@@ -389,15 +388,37 @@ export class MissionExecutionCoordinator {
     topic: EventTopic,
     extra?: { summary?: string; errorCode?: string },
   ): Promise<MissionExecutionContext> {
+    if (context.status === nextStatus) {
+      return context;
+    }
     this.assertTransition(context.status, nextStatus);
     const next: MissionExecutionContext = { ...context, status: nextStatus };
     this.registry.update(next);
     await this.persistence.save(next);
-    this.emit(topic, next, extra);
+    this.emitLifecycle(topic, next, extra);
     return next;
   }
 
-  private emit(
+  private emitProgress(
+    context: MissionExecutionContext,
+    summary: string,
+  ): void {
+    const payload = buildMissionLifecyclePayload({
+      missionId: context.missionId,
+      executionId: context.executionId,
+      correlationId: context.correlationId,
+      status: context.status,
+      currentStep: context.currentStep,
+      progress: context.progress,
+      assignedAgentId: context.assignedAgentId ?? OPERATIONAL_DIAGNOSTIC_AGENT_ID,
+      summary,
+      audited: true,
+    });
+
+    this.publishEvent?.("mission:progress", payload);
+  }
+
+  private emitLifecycle(
     topic: EventTopic,
     context: MissionExecutionContext,
     extra?: { summary?: string; errorCode?: string },
@@ -416,30 +437,50 @@ export class MissionExecutionCoordinator {
     });
 
     this.publishEvent?.(topic, payload);
-    this.recordAudit(topic, context, extra);
-    this.manager
-      .getTimeline()
-      .record(context.missionId, "note", topic, extra?.summary ?? context.status);
+
+    if (shouldAuditMissionTopic(topic)) {
+      this.appendAudit?.(
+        buildMissionAuditEntry(topic, {
+          missionId: context.missionId,
+          executionId: context.executionId,
+          correlationId: context.correlationId,
+          status: context.status,
+          progress: context.progress,
+          summary: extra?.summary ?? context.resultSummary,
+          errorCode: extra?.errorCode,
+        }),
+      );
+    }
   }
 
-  private recordAudit(
+  private recordTimelineMilestone(
+    missionId: string,
+    milestone: "assigned" | "started" | "completed" | "failed" | "cancelled",
+    detail?: string,
+  ): void {
+    const labels: Record<typeof milestone, string> = {
+      assigned: "Agente atribuído",
+      started: "Execução iniciada",
+      completed: "Missão concluída",
+      failed: "Execução falhou",
+      cancelled: "Execução cancelada",
+    };
+
+    this.manager.getTimeline().record(
+      missionId,
+      "note",
+      labels[milestone],
+      detail?.slice(0, 240),
+    );
+  }
+
+  /** @deprecated Use emitLifecycle — mantido para compatibilidade interna de fail/cancel paths */
+  private emit(
     topic: EventTopic,
     context: MissionExecutionContext,
     extra?: { summary?: string; errorCode?: string },
   ): void {
-    this.appendAudit?.({
-      action: topic.replace("mission:", "mission_"),
-      message: extra?.summary ?? `Missão ${context.status}`,
-      metadata: {
-        missionId: context.missionId,
-        executionId: context.executionId,
-        correlationId: context.correlationId,
-        status: context.status,
-        progress: context.progress,
-        ...(extra?.errorCode ? { errorCode: extra.errorCode } : {}),
-        origin: "mission_execution_coordinator",
-      },
-    });
+    this.emitLifecycle(topic, context, extra);
   }
 
   private syncMissionBoard(context: MissionExecutionContext): void {
@@ -480,6 +521,7 @@ export class MissionExecutionCoordinator {
     failed.completedAt = nowIso();
     this.manager.block(failed.missionId, sanitized);
     this.syncMissionBoard(failed);
+    this.recordTimelineMilestone(failed.missionId, "failed", sanitized);
 
     const result: MissionExecutionResult = {
       context: failed,
@@ -510,6 +552,7 @@ export class MissionExecutionCoordinator {
     cancelled.completedAt = nowIso();
     this.manager.block(cancelled.missionId, reason);
     this.syncMissionBoard(cancelled);
+    this.recordTimelineMilestone(cancelled.missionId, "cancelled", reason);
 
     const result: MissionExecutionResult = {
       context: cancelled,
