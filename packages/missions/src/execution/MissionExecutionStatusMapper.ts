@@ -19,13 +19,22 @@ export function mapExecutionStatusToMissionStatus(
       return "completed";
     case "cancelled":
       return "blocked";
+    case "interrupted":
+    case "recovery_required":
+      return "blocked";
     default:
       return "planned";
   }
 }
 
 export function isTerminalExecutionStatus(status: MissionExecutionStatus): boolean {
-  return status === "completed" || status === "failed" || status === "cancelled";
+  return (
+    status === "completed" ||
+    status === "failed" ||
+    status === "cancelled" ||
+    status === "interrupted" ||
+    status === "recovery_required"
+  );
 }
 
 export function isRunningExecutionStatus(status: MissionExecutionStatus): boolean {

@@ -360,10 +360,16 @@ importers:
       '@douglas/events':
         specifier: workspace:*
         version: link:../events
+      '@douglas/supabase':
+        specifier: workspace:*
+        version: link:../supabase
       react:
         specifier: ^19
         version: 19.2.4
     devDependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.49.8
+        version: 2.110.1
       '@types/react':
         specifier: ^19
         version: 19.2.17

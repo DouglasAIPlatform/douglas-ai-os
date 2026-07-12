@@ -7,14 +7,46 @@ import type {
   AgentSessionMetrics,
   OperationalAgentManifest,
 } from "./OperationalAgentTypes";
-import { SYSTEM_DIAGNOSTICS_AGENT_ID, SYSTEM_DIAGNOSTICS_AGENT_MANIFEST } from "./OperationalAgentTypes";
+import {
+  SYSTEM_DIAGNOSTICS_AGENT_ID,
+  SYSTEM_DIAGNOSTICS_AGENT_MANIFEST,
+} from "./OperationalAgentTypes";
+import {
+  RELEASE_READINESS_AGENT_ID,
+  RELEASE_READINESS_AGENT_MANIFEST,
+  type ReleaseReadinessAgentReport,
+} from "./ReleaseReadinessAgentTypes";
 import {
   AgentCapabilityMatcher,
   type AgentCapabilityMatchInput,
   type AgentCapabilityMatchResult,
 } from "./AgentCapabilityMatcher";
 import { createSystemDiagnosticsAgent } from "./SystemDiagnosticsAgent";
+import { createReleaseReadinessAgent } from "./ReleaseReadinessAgent";
 import type { OperationalSnapshotSource } from "./OperationalSnapshotSource";
+import type { ReleaseReadinessSnapshotSource } from "./ReleaseReadinessSnapshotSource";
+
+export type AgentExecutionSnapshotSources =
+  | OperationalSnapshotSource
+  | {
+      operational?: OperationalSnapshotSource;
+      releaseReadiness?: ReleaseReadinessSnapshotSource;
+    };
+
+function normalizeSnapshotSources(
+  sources: AgentExecutionSnapshotSources,
+): {
+  operational?: OperationalSnapshotSource;
+  releaseReadiness?: ReleaseReadinessSnapshotSource;
+} {
+  if (typeof sources === "object" && sources !== null && "collect" in sources) {
+    return { operational: sources as OperationalSnapshotSource };
+  }
+  return sources as {
+    operational?: OperationalSnapshotSource;
+    releaseReadiness?: ReleaseReadinessSnapshotSource;
+  };
+}
 
 export class AgentSessionMetricsStore {
   private readonly byAgent = new Map<string, AgentSessionMetrics>();
@@ -77,8 +109,14 @@ export class OperationalAgentRegistry {
   private readonly manifests = new Map<string, OperationalAgentManifest>();
   private readonly runtimeStatus = new Map<string, AgentRuntimeStatus>();
   private readonly lastReports = new Map<string, AgentExecutionReport>();
+  private readonly lastReleaseReadinessReports = new Map<string, ReleaseReadinessAgentReport>();
 
-  constructor(initial: OperationalAgentManifest[] = [SYSTEM_DIAGNOSTICS_AGENT_MANIFEST]) {
+  constructor(
+    initial: OperationalAgentManifest[] = [
+      SYSTEM_DIAGNOSTICS_AGENT_MANIFEST,
+      RELEASE_READINESS_AGENT_MANIFEST,
+    ],
+  ) {
     for (const manifest of initial) {
       this.register(manifest);
     }
@@ -118,6 +156,14 @@ export class OperationalAgentRegistry {
 
   getLastReport(agentId: string): AgentExecutionReport | undefined {
     return this.lastReports.get(agentId);
+  }
+
+  storeReleaseReadinessReport(agentId: string, report: ReleaseReadinessAgentReport): void {
+    this.lastReleaseReadinessReports.set(agentId, report);
+  }
+
+  getLastReleaseReadinessReport(agentId: string): ReleaseReadinessAgentReport | undefined {
+    return this.lastReleaseReadinessReports.get(agentId);
   }
 }
 
@@ -178,7 +224,7 @@ export class OperationalAgentRuntime {
 
   async execute(
     request: AgentExecutionRequest,
-    snapshotSource: OperationalSnapshotSource,
+    sources: AgentExecutionSnapshotSources,
     options?: {
       onProgress?: (stepId: string, progress: number, label: string) => void;
       signal?: AbortSignal;
@@ -190,50 +236,116 @@ export class OperationalAgentRuntime {
       return this.fail(request, "AGENT_NOT_FOUND", "Agente não registrado");
     }
 
-    if (manifest.id !== SYSTEM_DIAGNOSTICS_AGENT_ID) {
-      return this.fail(request, "AGENT_UNSUPPORTED", "Agente não suportado nesta sprint");
+    const normalizedSources = normalizeSnapshotSources(sources);
+
+    if (manifest.id === SYSTEM_DIAGNOSTICS_AGENT_ID) {
+      return this.executeDiagnosticsAgent(request, normalizedSources, options);
+    }
+
+    if (manifest.id === RELEASE_READINESS_AGENT_ID) {
+      return this.executeReleaseReadinessAgent(request, normalizedSources, options);
+    }
+
+    return this.fail(request, "AGENT_UNSUPPORTED", "Agente não suportado");
+  }
+
+  private async executeDiagnosticsAgent(
+    request: AgentExecutionRequest,
+    sources: {
+      operational?: OperationalSnapshotSource;
+      releaseReadiness?: ReleaseReadinessSnapshotSource;
+    },
+    options?: {
+      onProgress?: (stepId: string, progress: number, label: string) => void;
+      signal?: AbortSignal;
+      instant?: boolean;
+    },
+  ): Promise<AgentExecutionResult> {
+    if (!sources.operational) {
+      return this.fail(request, "SNAPSHOT_SOURCE_MISSING", "Fonte operacional indisponível");
     }
 
     const startedAt = Date.now();
-    const context: AgentExecutionContext = {
-      request,
-      status: "running",
-      assignedAt: new Date().toISOString(),
-      startedAt: new Date().toISOString(),
-      progress: 0,
-    };
-
-    this.registry.setStatus(request.agentId, "running");
-    this.publish?.("agent:execution_started", {
-      agentId: request.agentId,
-      executionId: request.executionId,
-      correlationId: request.correlationId,
-      missionId: request.missionId,
-      audited: true,
-    });
+    const context = this.beginExecution(request);
 
     const controller = new AbortController();
     this.activeExecutions.set(request.executionId, controller);
     options?.signal?.addEventListener("abort", () => controller.abort());
 
-    const agent = createSystemDiagnosticsAgent(snapshotSource);
+    const agent = createSystemDiagnosticsAgent(sources.operational);
     const outcome = await agent.execute({
       executionId: request.executionId,
       correlationId: request.correlationId,
       missionId: request.missionId,
       onProgress: (stepId, progress, label) => {
-        context.progress = progress;
-        context.currentStep = stepId;
-        this.publish?.("agent:progress", {
-          agentId: request.agentId,
-          executionId: request.executionId,
-          correlationId: request.correlationId,
-          progress,
-          currentStep: stepId,
-          summary: label,
-          audited: true,
-        });
-        options?.onProgress?.(stepId, progress, label);
+        this.publishProgress(request, context, stepId, progress, label, options);
+      },
+      signal: controller.signal,
+      instant: options?.instant,
+    });
+
+    this.activeExecutions.delete(request.executionId);
+    const durationMs = Date.now() - startedAt;
+    context.durationMs = durationMs;
+    context.completedAt = new Date().toISOString();
+
+    if (!outcome.success) {
+      return this.completeFailure(request, context, durationMs, outcome);
+    }
+
+    context.status = "completed";
+    context.progress = 100;
+    this.registry.setStatus(request.agentId, "idle");
+    this.registry.storeReport(request.agentId, outcome.report);
+    this.metrics.record(request.agentId, "completed", durationMs);
+
+    this.publish?.("agent:execution_completed", {
+      agentId: request.agentId,
+      executionId: request.executionId,
+      correlationId: request.correlationId,
+      summary: outcome.summary.slice(0, 240),
+      overallStatus: outcome.report.overallStatus,
+      audited: true,
+    });
+
+    return {
+      context,
+      success: true,
+      summary: outcome.summary,
+      report: outcome.report,
+    };
+  }
+
+  private async executeReleaseReadinessAgent(
+    request: AgentExecutionRequest,
+    sources: {
+      operational?: OperationalSnapshotSource;
+      releaseReadiness?: ReleaseReadinessSnapshotSource;
+    },
+    options?: {
+      onProgress?: (stepId: string, progress: number, label: string) => void;
+      signal?: AbortSignal;
+      instant?: boolean;
+    },
+  ): Promise<AgentExecutionResult> {
+    if (!sources.releaseReadiness) {
+      return this.fail(request, "SNAPSHOT_SOURCE_MISSING", "Fonte de readiness indisponível");
+    }
+
+    const startedAt = Date.now();
+    const context = this.beginExecution(request);
+
+    const controller = new AbortController();
+    this.activeExecutions.set(request.executionId, controller);
+    options?.signal?.addEventListener("abort", () => controller.abort());
+
+    const agent = createReleaseReadinessAgent(sources.releaseReadiness);
+    const outcome = await agent.execute({
+      executionId: request.executionId,
+      correlationId: request.correlationId,
+      missionId: request.missionId,
+      onProgress: (stepId, progress, label) => {
+        this.publishProgress(request, context, stepId, progress, label, options);
       },
       signal: controller.signal,
       instant: options?.instant,
@@ -261,6 +373,7 @@ export class OperationalAgentRuntime {
           correlationId: request.correlationId,
           errorCode: outcome.errorCode,
           summary: outcome.sanitizedError ?? outcome.summary,
+          verdict: outcome.report.verdict,
           audited: true,
         },
       );
@@ -269,14 +382,14 @@ export class OperationalAgentRuntime {
         context,
         success: false,
         summary: outcome.sanitizedError ?? outcome.summary,
-        report: outcome.report,
+        releaseReadinessReport: outcome.report,
       };
     }
 
     context.status = "completed";
     context.progress = 100;
     this.registry.setStatus(request.agentId, "idle");
-    this.registry.storeReport(request.agentId, outcome.report);
+    this.registry.storeReleaseReadinessReport(request.agentId, outcome.report);
     this.metrics.record(request.agentId, "completed", durationMs);
 
     this.publish?.("agent:execution_completed", {
@@ -284,7 +397,7 @@ export class OperationalAgentRuntime {
       executionId: request.executionId,
       correlationId: request.correlationId,
       summary: outcome.summary.slice(0, 240),
-      overallStatus: outcome.report.overallStatus,
+      verdict: outcome.report.verdict,
       audited: true,
     });
 
@@ -292,6 +405,88 @@ export class OperationalAgentRuntime {
       context,
       success: true,
       summary: outcome.summary,
+      releaseReadinessReport: outcome.report,
+    };
+  }
+
+  private beginExecution(request: AgentExecutionRequest): AgentExecutionContext {
+    this.registry.setStatus(request.agentId, "running");
+    this.publish?.("agent:execution_started", {
+      agentId: request.agentId,
+      executionId: request.executionId,
+      correlationId: request.correlationId,
+      missionId: request.missionId,
+      audited: true,
+    });
+
+    return {
+      request,
+      status: "running",
+      assignedAt: new Date().toISOString(),
+      startedAt: new Date().toISOString(),
+      progress: 0,
+    };
+  }
+
+  private publishProgress(
+    request: AgentExecutionRequest,
+    context: AgentExecutionContext,
+    stepId: string,
+    progress: number,
+    label: string,
+    options?: {
+      onProgress?: (stepId: string, progress: number, label: string) => void;
+    },
+  ): void {
+    context.progress = progress;
+    context.currentStep = stepId;
+    this.publish?.("agent:progress", {
+      agentId: request.agentId,
+      executionId: request.executionId,
+      correlationId: request.correlationId,
+      progress,
+      currentStep: stepId,
+      summary: label,
+      audited: true,
+    });
+    options?.onProgress?.(stepId, progress, label);
+  }
+
+  private completeFailure(
+    request: AgentExecutionRequest,
+    context: AgentExecutionContext,
+    durationMs: number,
+    outcome: {
+      errorCode?: string;
+      sanitizedError?: string;
+      summary: string;
+      report?: AgentExecutionReport;
+    },
+  ): AgentExecutionResult {
+    const isCancelled = outcome.errorCode === "AGENT_CANCELLED";
+    context.status = isCancelled ? "cancelled" : "failed";
+    this.registry.setStatus(request.agentId, "idle");
+    this.metrics.record(
+      request.agentId,
+      isCancelled ? "cancelled" : "failed",
+      durationMs,
+    );
+    this.publish?.(
+      isCancelled ? "agent:execution_cancelled" : "agent:execution_failed",
+      {
+        agentId: request.agentId,
+        executionId: request.executionId,
+        correlationId: request.correlationId,
+        errorCode: outcome.errorCode,
+        summary: outcome.sanitizedError ?? outcome.summary,
+        audited: true,
+      },
+    );
+
+    return {
+      context,
+      success: false,
+      summary: outcome.sanitizedError ?? outcome.summary,
       report: outcome.report,
     };
   }

@@ -6,11 +6,11 @@ Sprint 5.49 — runtime determinístico para agentes operacionais read-only.
 
 ```
 MissionExecutionCoordinator
-  → DiagnosticMissionExecutor
+  → DiagnosticMissionExecutor | ReleaseReadinessMissionExecutor
   → OperationalAgentRuntime.resolveAssignment()
   → AgentCapabilityMatcher
-  → SystemDiagnosticsAgent.execute()
-  → AgentExecutionReport
+  → SystemDiagnosticsAgent | ReleaseReadinessAgent
+  → AgentExecutionReport | ReleaseReadinessAgentReport
   → MissionExecutionResult + Timeline + Audit
 ```
 
@@ -40,7 +40,7 @@ Registra manifests, status runtime e último relatório por agente.
 ### OperationalAgentRuntime
 
 - Resolve assignment via matcher
-- Executa agente suportado (Sprint 5.49: apenas `system-diagnostics-agent`)
+- Executa agentes suportados: `system-diagnostics-agent`, `release-readiness-agent`
 - Publica eventos `agent:*` com `audited: true`
 - Mantém `AgentSessionMetricsStore` (métricas de sessão)
 
@@ -101,12 +101,23 @@ Todos com `audited: true` — mapper de audit ignora re-auditoria (anti-loop).
 
 `AgentSessionMetrics` por agentId — executions, outcomes, duração média. Sem dados sensíveis.
 
+## Agentes operacionais (Sprint 5.52)
+
+| Agente | Missão | Relatório |
+|--------|--------|-----------|
+| System Diagnostics Agent | `operational_diagnostic` | `AgentExecutionReport` |
+| Release Readiness Agent | `release_readiness_review` | `ReleaseReadinessAgentReport` |
+
+Diagnosticar ≠ recomendar ≠ aprovar: apenas o **owner** humano possui `release:approve_production` no RBAC.
+
+Ver: [Multi-Agent Assignment](./multi-agent-assignment.md), [Release Readiness Agent](../agents/release-readiness-agent.md).
+
 ## Próximos agentes
 
 1. Novo manifest + validação de segurança
 2. Implementação read-only ou policy explícita para mutações
 3. Registro no runtime
 4. Executor de missão + capability mapping
-5. Widget/page apenas se UX diferente; preferir extensão do widget existente
+5. Extensão do widget existente (preferido sobre widgets duplicados)
 
 Ver: [System Diagnostics Agent](../agents/system-diagnostics-agent.md), [Agent Execution Runbook](../operations/agent-execution-runbook.md).

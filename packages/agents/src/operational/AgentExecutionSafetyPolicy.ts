@@ -10,6 +10,10 @@ export const FORBIDDEN_OPERATIONAL_CAPABILITIES = [
   "config:critical",
   "service_role:access",
   "network:unrestricted",
+  "release:approve_production",
+  "tag:create",
+  "git:commit",
+  "git:push",
 ] as const;
 
 export type ForbiddenOperationalCapability = (typeof FORBIDDEN_OPERATIONAL_CAPABILITIES)[number];

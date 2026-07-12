@@ -29,7 +29,10 @@ export function MissionExecutionWidget({
   error: externalError,
 }: MissionExecutionWidgetProps) {
   const {
+    missionKind,
+    setMissionKind,
     title,
+    executeLabel,
     context,
     result,
     timeline,
@@ -49,9 +52,15 @@ export function MissionExecutionWidget({
     agentStatus,
     agentMetrics,
     agentReport,
-    executeDiagnostic,
+    releaseReadinessReport,
+    executeMission,
     cancelExecution,
     retryExecution,
+    retryPersistenceSync,
+    persistenceStatus,
+    recentExecutions,
+    persistenceEvents,
+    rehydratedExecution,
   } = useMissionExecution();
 
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -75,7 +84,7 @@ export function MissionExecutionWidget({
       return;
     }
     setConfirmExecute(false);
-    await executeDiagnostic();
+    await executeMission();
   };
 
   const handleCancel = async () => {
@@ -90,7 +99,7 @@ export function MissionExecutionWidget({
   return (
     <WidgetFrame
       title="Execução de Missão"
-      description="System Diagnostics Agent · fluxo Mission → Agent → Result (read-only)"
+      description="Mission → Agent → Result (read-only) · diagnóstico ou revisão de readiness"
       isLoading={isLoading}
       error={displayError}
       footer={
@@ -100,6 +109,24 @@ export function MissionExecutionWidget({
       }
     >
       <div className="space-y-[var(--ds-space-4)]">
+        <div className="flex flex-wrap gap-[var(--ds-space-2)]">
+          <MissionKindButton
+            active={missionKind === "operational_diagnostic"}
+            label="Diagnóstico operacional"
+            onClick={() => setMissionKind("operational_diagnostic")}
+          />
+          <MissionKindButton
+            active={missionKind === "release_readiness_review"}
+            label="Revisão de readiness"
+            onClick={() => setMissionKind("release_readiness_review")}
+          />
+        </div>
+
+        {missionKind === "release_readiness_review" ? (
+          <p className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-status-warning)]/30 bg-[var(--ds-color-surface-muted)] px-[var(--ds-space-3)] py-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+            Não aprova nem executa release — apenas recomenda readiness com base em snapshots internos.
+          </p>
+        ) : null}
         <div className="rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border-subtle)] bg-[var(--ds-color-surface-muted)] p-[var(--ds-space-3)]">
           <div className="flex flex-wrap items-center justify-between gap-[var(--ds-space-2)]">
             <p className="text-[length:var(--ds-font-size-sm)] font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)]">
@@ -152,6 +179,44 @@ export function MissionExecutionWidget({
           </p>
         ) : null}
 
+        {releaseReadinessReport ? (
+          <div className="rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border-subtle)] p-[var(--ds-space-3)]">
+            <p className="text-[length:var(--ds-font-size-xs)] font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)]">
+              Recomendação · {releaseReadinessReport.verdict}
+            </p>
+            <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+              v{releaseReadinessReport.version} · {releaseReadinessReport.environment} · channel{" "}
+              {releaseReadinessReport.releaseChannel}
+            </p>
+            {releaseReadinessReport.blockers.length ? (
+              <ul className="mt-[var(--ds-space-2)] list-disc pl-[var(--ds-space-4)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-status-warning)]">
+                {releaseReadinessReport.blockers.map((blocker) => (
+                  <li key={blocker.id}>{blocker.message}</li>
+                ))}
+              </ul>
+            ) : null}
+            {releaseReadinessReport.warnings.length ? (
+              <ul className="mt-[var(--ds-space-2)] list-disc pl-[var(--ds-space-4)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                {releaseReadinessReport.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            ) : null}
+            {releaseReadinessReport.recommendations.length ? (
+              <ul className="mt-[var(--ds-space-2)] list-disc pl-[var(--ds-space-4)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                {releaseReadinessReport.recommendations.map((item) => (
+                  <li key={item.message}>{item.message}</li>
+                ))}
+              </ul>
+            ) : null}
+            {releaseReadinessReport.evidence.length ? (
+              <p className="mt-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                Evidências: {releaseReadinessReport.evidence.length} snapshot(s) analisado(s)
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         {agentReport ? (
           <div className="rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border-subtle)] p-[var(--ds-space-3)]">
             <p className="text-[length:var(--ds-font-size-xs)] font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)]">
@@ -181,7 +246,7 @@ export function MissionExecutionWidget({
             onClick={() => void handleExecute()}
             className="rounded-[var(--ds-radius-sm)] bg-[var(--ds-color-brand-accent)] px-[var(--ds-space-3)] py-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)] font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-inverse)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {confirmExecute ? "Confirmar execução" : "Executar diagnóstico"}
+            {confirmExecute ? "Confirmar execução" : executeLabel}
           </button>
 
           {canCancelNow ? (
@@ -229,6 +294,57 @@ export function MissionExecutionWidget({
           </div>
         ) : null}
 
+        <div className="rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border-subtle)] bg-[var(--ds-color-surface-muted)] p-[var(--ds-space-3)]">
+          <p className="text-[length:var(--ds-font-size-xs)] font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)]">
+            Persistência
+          </p>
+          <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+            Modo: {persistenceStatus?.mode ?? "—"} · Adapter:{" "}
+            {persistenceStatus?.activeAdapter ?? "—"}
+            {persistenceStatus?.lastSyncAt
+              ? ` · Sync ${formatTime(persistenceStatus.lastSyncAt)}`
+              : ""}
+          </p>
+          {persistenceStatus?.fallbackActive ? (
+            <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-status-warning)]">
+              Fallback sessionStorage ativo
+              {persistenceStatus.pendingSyncCount
+                ? ` · ${persistenceStatus.pendingSyncCount} pendente(s)`
+                : ""}
+            </p>
+          ) : null}
+          {rehydratedExecution ? (
+            <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+              Reidratada: {rehydratedExecution.executionId.slice(0, 16)}… ·{" "}
+              {MISSION_EXECUTION_STATUS_LABELS[rehydratedExecution.status]}
+            </p>
+          ) : null}
+          {persistenceEvents.length > 0 ? (
+            <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+              Timeline persistida: {persistenceEvents.length} evento(s)
+            </p>
+          ) : null}
+          {recentExecutions.length > 1 ? (
+            <ul className="mt-[var(--ds-space-2)] list-disc pl-[var(--ds-space-4)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+              {recentExecutions.slice(0, 3).map((item) => (
+                <li key={item.executionId}>
+                  {item.executionId.slice(0, 12)}… ·{" "}
+                  {MISSION_EXECUTION_STATUS_LABELS[item.status]}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {persistenceStatus?.fallbackActive ? (
+            <button
+              type="button"
+              onClick={() => void retryPersistenceSync()}
+              className="mt-[var(--ds-space-2)] rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] px-[var(--ds-space-2)] py-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)]"
+            >
+              Retry sync
+            </button>
+          ) : null}
+        </div>
+
         {timeline.length > 0 ? (
           <div>
             <p className="mb-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)] font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)]">
@@ -252,6 +368,30 @@ export function MissionExecutionWidget({
         ) : null}
       </div>
     </WidgetFrame>
+  );
+}
+
+function MissionKindButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-[var(--ds-radius-sm)] px-[var(--ds-space-3)] py-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)] ${
+        active
+          ? "bg-[var(--ds-color-brand-accent)] text-[var(--ds-color-text-inverse)]"
+          : "border border-[var(--ds-color-border-subtle)] text-[var(--ds-color-text-muted)]"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 

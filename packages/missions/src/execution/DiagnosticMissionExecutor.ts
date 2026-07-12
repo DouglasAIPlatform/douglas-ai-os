@@ -1,4 +1,4 @@
-import type { OperationalAgentRuntime, OperationalSnapshotSource } from "@douglas/agents";
+import type { OperationalAgentRuntime, OperationalSnapshotSource, ReleaseReadinessSnapshotSource } from "@douglas/agents";
 import {
   OPERATIONAL_DIAGNOSTIC_REQUIRED_CAPABILITIES,
   SYSTEM_DIAGNOSTICS_AGENT_ID,
@@ -16,6 +16,7 @@ export interface MissionExecutorInput {
   signal?: AbortSignal;
   instant?: boolean;
   snapshotSource?: OperationalSnapshotSource;
+  releaseReadinessSnapshotSource?: ReleaseReadinessSnapshotSource;
 }
 
 export interface MissionExecutorResult {
@@ -147,10 +148,13 @@ export class MissionExecutorRegistry {
   }
 }
 
+import { ReleaseReadinessMissionExecutor } from "./ReleaseReadinessMissionExecutor";
+
 export function createDefaultMissionExecutorRegistry(
   agentRuntime: OperationalAgentRuntime,
 ): MissionExecutorRegistry {
   const registry = new MissionExecutorRegistry();
   registry.register(new DiagnosticMissionExecutor(agentRuntime));
+  registry.register(new ReleaseReadinessMissionExecutor(agentRuntime));
   return registry;
 }

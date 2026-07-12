@@ -5,6 +5,8 @@ import type {
   SecurityActionEventPayload,
 } from "./OperationalEventTypes";
 import type { MissionLifecycleEventPayload } from "./MissionEventTypes";
+import type { MissionPersistenceEventPayload } from "./MissionPersistenceEventTypes";
+import type { AgentHistoryEventPayload } from "./AgentHistoryEventTypes";
 import type { AgentOperationalEventPayload } from "./AgentOperationalEventTypes";
 
 export type {
@@ -210,6 +212,11 @@ export interface DouglasEventMap {
   "mission:failed": MissionLifecycleEventPayload;
   "mission:cancelled": MissionLifecycleEventPayload;
   "mission:duplicate_rejected": MissionLifecycleEventPayload;
+  "mission:persistence_saved": MissionPersistenceEventPayload;
+  "mission:persistence_failed": MissionPersistenceEventPayload;
+  "mission:persistence_fallback": MissionPersistenceEventPayload;
+  "mission:persistence_rehydrated": MissionPersistenceEventPayload;
+  "mission:recovery_required": MissionPersistenceEventPayload;
   "agent:registered": AgentOperationalEventPayload;
   "agent:assigned": AgentOperationalEventPayload;
   "agent:execution_started": AgentOperationalEventPayload;
@@ -218,6 +225,9 @@ export interface DouglasEventMap {
   "agent:execution_failed": AgentOperationalEventPayload;
   "agent:execution_cancelled": AgentOperationalEventPayload;
   "agent:assignment_rejected": AgentOperationalEventPayload;
+  "agent:history_rehydrated": AgentHistoryEventPayload;
+  "agent:metrics_updated": AgentHistoryEventPayload;
+  "agent:history_load_failed": AgentHistoryEventPayload;
 }
 
 export type EventTopic = keyof DouglasEventMap;
@@ -271,6 +281,11 @@ export const EVENT_CATEGORIES: Record<EventCategory, EventTopic[]> = {
     "mission:failed",
     "mission:cancelled",
     "mission:duplicate_rejected",
+    "mission:persistence_saved",
+    "mission:persistence_failed",
+    "mission:persistence_fallback",
+    "mission:persistence_rehydrated",
+    "mission:recovery_required",
   ],
   agents: [
     "agent:registered",
@@ -281,6 +296,9 @@ export const EVENT_CATEGORIES: Record<EventCategory, EventTopic[]> = {
     "agent:execution_failed",
     "agent:execution_cancelled",
     "agent:assignment_rejected",
+    "agent:history_rehydrated",
+    "agent:metrics_updated",
+    "agent:history_load_failed",
   ],
 };
 
@@ -328,6 +346,11 @@ export const TOPIC_CATEGORY: Record<EventTopic, EventCategory> = {
   "mission:failed": "missions",
   "mission:cancelled": "missions",
   "mission:duplicate_rejected": "missions",
+  "mission:persistence_saved": "missions",
+  "mission:persistence_failed": "missions",
+  "mission:persistence_fallback": "missions",
+  "mission:persistence_rehydrated": "missions",
+  "mission:recovery_required": "missions",
   "agent:registered": "agents",
   "agent:assigned": "agents",
   "agent:execution_started": "agents",
@@ -336,4 +359,7 @@ export const TOPIC_CATEGORY: Record<EventTopic, EventCategory> = {
   "agent:execution_failed": "agents",
   "agent:execution_cancelled": "agents",
   "agent:assignment_rejected": "agents",
+  "agent:history_rehydrated": "agents",
+  "agent:metrics_updated": "agents",
+  "agent:history_load_failed": "agents",
 };

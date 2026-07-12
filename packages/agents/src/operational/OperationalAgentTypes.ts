@@ -75,6 +75,7 @@ export interface AgentExecutionResult {
   success: boolean;
   summary: string;
   report?: AgentExecutionReport;
+  releaseReadinessReport?: import("./ReleaseReadinessAgentTypes").ReleaseReadinessAgentReport;
 }
 
 export interface AgentExecutionError {

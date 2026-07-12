@@ -19,6 +19,7 @@ import { ReleaseStatusWidget } from "@/components/widgets/ReleaseStatusWidget";
 import { AuthStatusWidget } from "@/components/widgets/AuthStatusWidget";
 import { OperatorProfileBootstrapWidget } from "@/components/widgets/OperatorProfileBootstrapWidget";
 import { MissionExecutionWidget } from "@/components/widgets/MissionExecutionWidget";
+import { AgentExecutionHistoryWidget } from "@/components/widgets/AgentExecutionHistoryWidget";
 import { UnifiedPlatformStatusWidget } from "@/components/widgets/UnifiedPlatformStatusWidget";
 import { getRouteBreadcrumbs, getRouteById } from "@/config/routes";
 import { CommandPaletteActions } from "@/features/command-palette/CommandPaletteActions";
@@ -56,6 +57,9 @@ export function HeadquartersPage() {
         </Card>
         <Card className="lg:col-span-2">
           <MissionExecutionWidget />
+        </Card>
+        <Card className="lg:col-span-2">
+          <AgentExecutionHistoryWidget />
         </Card>
         <Card className="lg:col-span-2">
           <HealthDashboardWidget />

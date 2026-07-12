@@ -16,6 +16,7 @@ describe("Operational Agent Runtime", () => {
     expect(registry.get(SYSTEM_DIAGNOSTICS_AGENT_ID)?.name).toBe(
       "System Diagnostics Agent",
     );
+    expect(registry.get("release-readiness-agent")).toBeDefined();
   });
 
   it("manifest possui versão e capabilities seguras", () => {

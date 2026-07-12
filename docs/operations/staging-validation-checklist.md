@@ -4,6 +4,18 @@
 
 Execute `pnpm staging:check` para verificação estática automatizada. Itens marcados **runtime** exigem ambiente staging deployado.
 
+## Status do staging:check
+
+| Status | Significado | Exit code |
+|--------|-------------|-----------|
+| `passed` | Estáticos e runtime aprovados | 0 |
+| `passed_with_runtime_checks_pending` | Estáticos OK; staging real **não** validado ainda | 0 |
+| `failed` | Bloqueio estático ou runtime bloqueante | 1 |
+
+Quando o ambiente efetivo é `development` (padrão local), é esperado `passed_with_runtime_checks_pending` — auth real, profile ativo e audit ingest ainda pendentes.
+
+**Não interprete `passed_with_runtime_checks_pending` como staging deployado e validado.**
+
 ## Configuração estática (codebase)
 
 - [ ] `StagingEnvironmentProfile` presente em `@douglas/environment`

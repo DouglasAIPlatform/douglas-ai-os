@@ -13,9 +13,12 @@
     "@douglas/events": "workspace:*"
   },
   "peerDependencies": {
+    "@supabase/supabase-js": "^2",
     "react": "^19"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.49.8",
+    "@types/node": "^20",
     "@types/react": "^19",
     "typescript": "^5"
   }

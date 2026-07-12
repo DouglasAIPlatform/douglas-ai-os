@@ -53,6 +53,20 @@ export {
 } from "./MissionEventTypes";
 
 export {
+  MISSION_PERSISTENCE_EVENT_TOPICS,
+  buildMissionPersistencePayload,
+  type MissionPersistenceEventPayload,
+  type MissionPersistenceEventTopic,
+} from "./MissionPersistenceEventTypes";
+
+export {
+  AGENT_HISTORY_EVENT_TOPICS,
+  buildAgentHistoryEventPayload,
+  type AgentHistoryEventPayload,
+  type AgentHistoryEventTopic,
+} from "./AgentHistoryEventTypes";
+
+export {
   AGENT_OPERATIONAL_EVENT_TOPICS,
   buildAgentOperationalPayload,
   type AgentOperationalEventPayload,

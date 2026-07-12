@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   OperationalAgentRuntime,
+  RELEASE_READINESS_AGENT_ID,
   SYSTEM_DIAGNOSTICS_AGENT_ID,
   createDeterministicOperationalSnapshot,
+  createDeterministicReleaseReadinessSnapshot,
 } from "@douglas/agents";
 import { mapEventToAuditEntries, createAuditMapperState } from "@douglas/audit";
 import { createEvent } from "@douglas/events";
@@ -15,12 +17,14 @@ import {
   MissionExecutionIdempotencyGuard,
   MissionExecutionRegistry,
   OPERATIONAL_DIAGNOSTIC_MISSION_TYPE,
+  RELEASE_READINESS_REVIEW_MISSION_TYPE,
   shouldAuditMissionTopic,
 } from "./index";
 
 function createCoordinator(overrides?: {
   publishEvent?: MissionExecutionCoordinator["publishEvent"];
   appendAudit?: MissionExecutionCoordinator["appendAudit"];
+  includeReleaseSnapshot?: boolean;
 }) {
   const manager = new MissionManager();
   const events: string[] = [];
@@ -29,11 +33,17 @@ function createCoordinator(overrides?: {
   const snapshotSource = {
     collect: () => createDeterministicOperationalSnapshot(),
   };
+  const releaseReadinessSnapshotSource = {
+    collect: () => createDeterministicReleaseReadinessSnapshot(),
+  };
 
   const coordinator = new MissionExecutionCoordinator({
     manager,
     agentRuntime,
     snapshotSource,
+    releaseReadinessSnapshotSource: overrides?.includeReleaseSnapshot === false
+      ? undefined
+      : releaseReadinessSnapshotSource,
     publishEvent: overrides?.publishEvent ?? ((topic) => events.push(topic)),
     appendAudit:
       overrides?.appendAudit ??
@@ -306,6 +316,33 @@ describe("MissionExecutionCoordinator", () => {
 
     expect(auditFromMapper).toHaveLength(0);
     expect(auditFromAppend.filter((a) => a === "mission_completed")).toHaveLength(1);
+  });
+
+  it("executa release_readiness_review com agente correto", async () => {
+    const { coordinator } = createCoordinator();
+    const request = coordinator.createReleaseReadinessRequest({
+      executionId: "exec-rr-mission",
+      correlationId: "corr-rr-mission",
+      requestId: "req-rr-mission",
+      createdBy: "op-1",
+      createdByRole: "operator",
+    });
+
+    const result = await coordinator.execute(request, { instant: true });
+
+    expect(result.success).toBe(true);
+    expect(result.context.assignedAgentId).toBe(RELEASE_READINESS_AGENT_ID);
+    expect(result.context.request.missionType).toBe(RELEASE_READINESS_REVIEW_MISSION_TYPE);
+  });
+
+  it("operator pode executar release_readiness_review", () => {
+    expect(
+      canPerformMissionExecution({
+        role: "operator",
+        missionType: RELEASE_READINESS_REVIEW_MISSION_TYPE,
+        capability: "execute",
+      }),
+    ).toBe(true);
   });
 
   it("idempotency guard detecta duplicidade", () => {

@@ -14,6 +14,11 @@ export {
   OPERATIONAL_DIAGNOSTIC_MISSION_TYPE,
   OPERATIONAL_DIAGNOSTIC_MISSION_TITLE,
   OPERATIONAL_DIAGNOSTIC_AGENT_ID,
+  RELEASE_READINESS_REVIEW_MISSION_TYPE,
+  RELEASE_READINESS_REVIEW_MISSION_TITLE,
+  RELEASE_READINESS_AGENT_ID,
+  PERSISTABLE_MISSION_TYPES,
+  isPersistableMissionType,
   abbreviateCorrelationId,
 } from "./MissionExecutionTypes";
 
@@ -35,8 +40,26 @@ export {
   type MissionExecutionPersistenceAdapter,
   InMemoryMissionExecutionPersistence,
   SessionMissionExecutionPersistence,
-  CompositeMissionExecutionPersistence,
 } from "./MissionExecutionPersistenceAdapter";
+
+export * from "./history";
+
+export * from "./catalog";
+
+export {
+  CompositeMissionExecutionPersistence,
+  createCompositeMissionExecutionPersistence,
+  isMissionExecutionPersistenceWithStatus,
+  readMissionExecutionPersistenceStatus,
+  rehydrateMissionExecutions,
+  evaluateMissionExecutionRecovery,
+  type CompositeMissionExecutionPersistenceConfig,
+  type MissionExecutionPersistenceAdapterWithStatus,
+  type MissionExecutionPersistenceHealth,
+  type MissionExecutionPersistenceMode,
+  type MissionExecutionRecoveryDecision,
+  type MissionExecutionEventRecord,
+} from "./persistence";
 
 export {
   DiagnosticMissionExecutor,
@@ -46,6 +69,8 @@ export {
   type MissionExecutorInput,
   type MissionExecutorResult,
 } from "./DiagnosticMissionExecutor";
+
+export { ReleaseReadinessMissionExecutor } from "./ReleaseReadinessMissionExecutor";
 
 export {
   MissionExecutionCoordinator,
@@ -57,6 +82,8 @@ export {
 export {
   canPerformMissionExecution,
   missionExecutionAccessReason,
+  getOperatorExecutableMissionTypes,
+  hasMissionExecutionAccessPolicy,
   type MissionExecutionCapability,
   type MissionExecutionAccessInput,
 } from "./MissionExecutionAccessPolicy";

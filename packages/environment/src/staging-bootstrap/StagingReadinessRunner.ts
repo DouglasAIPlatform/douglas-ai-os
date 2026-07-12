@@ -267,17 +267,6 @@ export function runStagingReadinessCheck(
     blockers.push(item.message);
   }
 
-  let status: StagingReadinessReport["status"] = "passed_with_runtime_checks_pending";
-  if (staticIssues.length > 0) {
-    status = "failed";
-  } else if (blockingChecks.length > 0) {
-    status = "failed";
-  } else if (checks.some((item) => item.outcome === "pending_runtime")) {
-    status = "passed_with_runtime_checks_pending";
-  } else {
-    status = "passed";
-  }
-
   return buildStagingReadinessReport({
     snapshot,
     checks,

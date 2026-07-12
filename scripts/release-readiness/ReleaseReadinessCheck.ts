@@ -59,7 +59,33 @@ export type ReleaseReadinessCheckId =
   | "mission_agent_integration_present"
   | "agent_events_typed"
   | "operational_agent_tests_passing"
-  | "agent_runtime_docs_present";
+  | "agent_runtime_docs_present"
+  | "mission_persistence_migration_present"
+  | "mission_persistence_rls_enabled"
+  | "mission_persistence_anon_denied"
+  | "mission_persistence_supabase_adapter_present"
+  | "mission_persistence_fallback_present"
+  | "mission_recovery_policy_present"
+  | "mission_persistence_tests_passing"
+  | "mission_persistence_docs_present"
+  | "mission_persistence_events_typed"
+  | "agent_execution_history_repository_present"
+  | "agent_execution_metrics_calculator_present"
+  | "agent_execution_pagination_present"
+  | "agent_execution_retention_policy_present"
+  | "agents_page_history_integrated"
+  | "agent_execution_history_tests_passing"
+  | "agent_execution_history_docs_present"
+  | "agent_history_events_typed"
+  | "release_readiness_agent_registered"
+  | "release_readiness_mission_present"
+  | "release_readiness_agent_capabilities_safe"
+  | "release_readiness_production_approval_absent"
+  | "release_readiness_mission_agent_integration"
+  | "release_readiness_agent_tests_passing"
+  | "release_readiness_agent_docs_present"
+  | "mission_type_catalog_aligned"
+  | "mission_type_catalog_tests_passing";
 
 export interface ReleaseReadinessCheck {
   id: ReleaseReadinessCheckId;
@@ -131,6 +157,32 @@ export const RELEASE_READINESS_CHECK_LABELS: Record<ReleaseReadinessCheckId, str
   agent_events_typed: "Eventos agent:* tipados",
   operational_agent_tests_passing: "Testes operational agent runtime",
   agent_runtime_docs_present: "Docs operational agent runtime presentes",
+  mission_persistence_migration_present: "Migration mission_executions presente",
+  mission_persistence_rls_enabled: "RLS mission persistence habilitado",
+  mission_persistence_anon_denied: "Anon sem acesso mission_executions",
+  mission_persistence_supabase_adapter_present: "Adapter Supabase mission persistence",
+  mission_persistence_fallback_present: "Fallback session mission persistence",
+  mission_recovery_policy_present: "Recovery policy mission execution",
+  mission_persistence_tests_passing: "Testes mission persistence passando",
+  mission_persistence_docs_present: "Docs mission persistence presentes",
+  mission_persistence_events_typed: "Eventos mission:persistence_* tipados",
+  agent_execution_history_repository_present: "Repository histórico de agentes presente",
+  agent_execution_metrics_calculator_present: "Metrics calculator de agentes presente",
+  agent_execution_pagination_present: "Paginação histórico de agentes presente",
+  agent_execution_retention_policy_present: "Retention policy histórico de agentes",
+  agents_page_history_integrated: "Agents page com histórico integrado",
+  agent_execution_history_tests_passing: "Testes agent execution history",
+  agent_execution_history_docs_present: "Docs agent execution history presentes",
+  agent_history_events_typed: "Eventos agent:history_* tipados",
+  release_readiness_agent_registered: "Release Readiness Agent registrado",
+  release_readiness_mission_present: "Missão release_readiness_review presente",
+  release_readiness_agent_capabilities_safe: "Capabilities Release Readiness Agent seguras",
+  release_readiness_production_approval_absent: "Agente sem aprovação de produção",
+  release_readiness_mission_agent_integration: "Integração Mission → Release Agent",
+  release_readiness_agent_tests_passing: "Testes Release Readiness Agent",
+  release_readiness_agent_docs_present: "Docs Release Readiness Agent presentes",
+  mission_type_catalog_aligned: "Catálogo mission types alinhado (app, SQL, executor, policy)",
+  mission_type_catalog_tests_passing: "Testes mission type catalog drift passando",
 };
 
 /** Migrations mínimas esperadas para release (ordem lexicográfica). */
@@ -142,6 +194,7 @@ export const EXPECTED_SUPABASE_MIGRATIONS = [
   "20250710180000_server_rbac_enforcement.sql",
   "20250710190000_owner_permission_seed.sql",
   "20250710200000_owner_admin_rls_separation.sql",
+  "20250710210000_mission_executions.sql",
 ] as const;
 
 /** Documentos operacionais e de arquitetura exigidos antes de release. */
@@ -173,6 +226,15 @@ export const REQUIRED_RELEASE_DOCS = [
   "docs/agents/system-diagnostics-agent.md",
   "docs/architecture/operational-agent-runtime.md",
   "docs/operations/agent-execution-runbook.md",
+  "docs/architecture/mission-persistence.md",
+  "docs/database/mission-execution-schema.md",
+  "docs/operations/mission-persistence-runbook.md",
+  "docs/agents/agent-execution-history.md",
+  "docs/architecture/agent-metrics.md",
+  "docs/operations/agent-history-runbook.md",
+  "docs/agents/release-readiness-agent.md",
+  "docs/architecture/multi-agent-assignment.md",
+  "docs/operations/release-readiness-agent-runbook.md",
   "supabase/functions/audit-ingest/README.md",
 ] as const;
 

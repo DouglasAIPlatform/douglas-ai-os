@@ -27,6 +27,7 @@ export default defineConfig({
       "@douglas/missions": path.join(repoRoot, "packages/missions/src/index.ts"),
       "@douglas/agents": path.join(repoRoot, "packages/agents/src/index.ts"),
       "@douglas/audit": path.join(repoRoot, "packages/audit/src/index.ts"),
+      "@douglas/supabase": path.join(repoRoot, "packages/supabase/src/index.ts"),
     },
   },
 });

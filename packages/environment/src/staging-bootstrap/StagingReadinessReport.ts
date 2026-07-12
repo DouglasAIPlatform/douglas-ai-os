@@ -49,7 +49,7 @@ export function buildStagingReadinessReport(input: {
 
   let status: StagingReadinessStatus = "passed";
 
-  if (blockingChecks.length > 0) {
+  if (blockingChecks.length > 0 || (input.blockers?.length ?? 0) > 0) {
     status = "failed";
   } else if (pendingRuntimeChecks.length > 0) {
     status = "passed_with_runtime_checks_pending";
@@ -75,6 +75,11 @@ export function formatStagingReadinessReport(report: StagingReadinessReport): st
 
   lines.push("Douglas AI OS — Staging Readiness Check");
   lines.push(`Status: ${report.status}`);
+  if (report.status === "passed_with_runtime_checks_pending") {
+    lines.push(
+      "Nota: checks estáticos aprovados — staging real ainda NÃO validado (runtime pendente).",
+    );
+  }
   lines.push(`Bootstrap: ${report.bootstrapStatus}`);
   lines.push(`Verificado em: ${report.checkedAt}`);
   lines.push(`Ambiente efetivo: ${report.snapshot.effectiveEnvironment}`);

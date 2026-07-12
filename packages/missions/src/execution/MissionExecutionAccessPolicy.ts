@@ -1,7 +1,17 @@
 import type { MissionOperatorRole } from "./MissionExecutionTypes";
 import {
-  OPERATIONAL_DIAGNOSTIC_MISSION_TYPE,
+  PERSISTABLE_MISSION_TYPES,
+  type PersistableMissionType,
 } from "./MissionExecutionTypes";
+
+/** Mission types que operator pode executar e persistir — derivado do catálogo canônico. */
+export function getOperatorExecutableMissionTypes(): readonly PersistableMissionType[] {
+  return PERSISTABLE_MISSION_TYPES;
+}
+
+export function hasMissionExecutionAccessPolicy(missionType: string): boolean {
+  return (PERSISTABLE_MISSION_TYPES as readonly string[]).includes(missionType);
+}
 
 export type MissionExecutionCapability = "view" | "execute" | "cancel" | "retry";
 
@@ -25,7 +35,7 @@ export function canPerformMissionExecution(input: MissionExecutionAccessInput): 
 
   if (capability === "execute" || capability === "retry") {
     if (role === "operator") {
-      return missionType === OPERATIONAL_DIAGNOSTIC_MISSION_TYPE;
+      return (PERSISTABLE_MISSION_TYPES as readonly string[]).includes(missionType);
     }
     return role === "owner" || role === "admin" || role === "operator";
   }
@@ -50,8 +60,11 @@ export function missionExecutionAccessReason(input: MissionExecutionAccessInput)
     return "Cancelamento requer role owner ou admin";
   }
 
-  if (input.role === "operator" && input.missionType !== OPERATIONAL_DIAGNOSTIC_MISSION_TYPE) {
-    return "Operator pode executar apenas a missão diagnóstica operacional";
+  if (
+    input.role === "operator" &&
+    !(PERSISTABLE_MISSION_TYPES as readonly string[]).includes(input.missionType)
+  ) {
+    return "Operator pode executar apenas missões operacionais registradas";
   }
 
   return "Permissão insuficiente para esta ação";

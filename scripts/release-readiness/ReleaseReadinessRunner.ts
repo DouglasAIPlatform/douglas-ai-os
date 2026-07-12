@@ -69,6 +69,37 @@ import {
   runOperationalAgentTests,
 } from "./AgentRuntimeChecks.ts";
 import {
+  checkMissionPersistenceAnonDenied,
+  checkMissionPersistenceDocsPresent,
+  checkMissionPersistenceEventsTyped,
+  checkMissionPersistenceFallbackPresent,
+  checkMissionPersistenceMigrationPresent,
+  checkMissionPersistenceRlsEnabled,
+  checkMissionRecoveryPolicyPresent,
+  checkSupabaseMissionPersistenceAdapterPresent,
+  runMissionPersistenceTests,
+} from "./MissionPersistenceChecks.ts";
+import { checkMissionTypeCatalogAligned, runMissionTypeCatalogDriftTests } from "./MissionTypeCatalogChecks.ts";
+import {
+  checkAgentExecutionHistoryDocsPresent,
+  checkAgentExecutionHistoryRepositoryPresent,
+  checkAgentExecutionMetricsCalculatorPresent,
+  checkAgentExecutionPaginationPresent,
+  checkAgentExecutionRetentionPolicyPresent,
+  checkAgentHistoryEventsTyped,
+  checkAgentsPageHistoryIntegrated,
+  runAgentExecutionHistoryTests,
+} from "./AgentExecutionHistoryChecks.ts";
+import {
+  checkReleaseReadinessAgentCapabilitiesSafe,
+  checkReleaseReadinessAgentDocsPresent,
+  checkReleaseReadinessAgentRegistered,
+  checkReleaseReadinessMissionAgentIntegration,
+  checkReleaseReadinessMissionTypePresent,
+  checkReleaseReadinessProductionApprovalAbsent,
+  runReleaseReadinessAgentTests,
+} from "./ReleaseReadinessAgentChecks.ts";
+import {
   collectVersionTargets,
   loadReleaseManifest,
 } from "../release-versioning/VersionConsistency.ts";
@@ -1183,6 +1214,32 @@ export function runReleaseReadiness(
   checks.push(checkAgentEventsTyped(repoRoot));
   checks.push(runOperationalAgentTests(repoRoot));
   checks.push(checkAgentRuntimeDocsPresent(repoRoot));
+  checks.push(checkMissionPersistenceMigrationPresent(repoRoot));
+  checks.push(checkMissionTypeCatalogAligned(repoRoot));
+  checks.push(runMissionTypeCatalogDriftTests(repoRoot));
+  checks.push(checkMissionPersistenceRlsEnabled(repoRoot));
+  checks.push(checkMissionPersistenceAnonDenied(repoRoot));
+  checks.push(checkSupabaseMissionPersistenceAdapterPresent(repoRoot));
+  checks.push(checkMissionPersistenceFallbackPresent(repoRoot));
+  checks.push(checkMissionRecoveryPolicyPresent(repoRoot));
+  checks.push(checkMissionPersistenceEventsTyped(repoRoot));
+  checks.push(runMissionPersistenceTests(repoRoot));
+  checks.push(checkMissionPersistenceDocsPresent(repoRoot));
+  checks.push(checkAgentExecutionHistoryRepositoryPresent(repoRoot));
+  checks.push(checkAgentExecutionMetricsCalculatorPresent(repoRoot));
+  checks.push(checkAgentExecutionPaginationPresent(repoRoot));
+  checks.push(checkAgentExecutionRetentionPolicyPresent(repoRoot));
+  checks.push(checkAgentsPageHistoryIntegrated(repoRoot));
+  checks.push(checkAgentHistoryEventsTyped(repoRoot));
+  checks.push(runAgentExecutionHistoryTests(repoRoot));
+  checks.push(checkAgentExecutionHistoryDocsPresent(repoRoot));
+  checks.push(checkReleaseReadinessAgentRegistered(repoRoot));
+  checks.push(checkReleaseReadinessMissionTypePresent(repoRoot));
+  checks.push(checkReleaseReadinessAgentCapabilitiesSafe(repoRoot));
+  checks.push(checkReleaseReadinessProductionApprovalAbsent(repoRoot));
+  checks.push(checkReleaseReadinessMissionAgentIntegration(repoRoot));
+  checks.push(runReleaseReadinessAgentTests(repoRoot));
+  checks.push(checkReleaseReadinessAgentDocsPresent(repoRoot));
   checks.push(runRbacVerificationTests(repoRoot));
 
   const preliminary = buildReleaseReadinessReport(checks, []);

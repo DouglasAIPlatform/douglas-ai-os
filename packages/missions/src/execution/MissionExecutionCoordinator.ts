@@ -1,4 +1,4 @@
-import type { OperationalAgentRuntime, OperationalSnapshotSource } from "@douglas/agents";
+import type { OperationalAgentRuntime, OperationalSnapshotSource, ReleaseReadinessSnapshotSource } from "@douglas/agents";
 import { OperationalAgentRuntime as DefaultOperationalAgentRuntime } from "@douglas/agents";
 import type { EventTopic } from "@douglas/events";
 import { buildMissionLifecyclePayload } from "@douglas/events";
@@ -18,6 +18,8 @@ import {
 } from "./MissionExecutionIdempotency";
 import {
   CompositeMissionExecutionPersistence,
+} from "./persistence/CompositeMissionExecutionPersistence";
+import {
   InMemoryMissionExecutionPersistence,
   type MissionExecutionPersistenceAdapter,
 } from "./MissionExecutionPersistenceAdapter";
@@ -37,6 +39,8 @@ import {
   OPERATIONAL_DIAGNOSTIC_AGENT_ID,
   OPERATIONAL_DIAGNOSTIC_MISSION_TITLE,
   OPERATIONAL_DIAGNOSTIC_MISSION_TYPE,
+  RELEASE_READINESS_REVIEW_MISSION_TITLE,
+  RELEASE_READINESS_REVIEW_MISSION_TYPE,
 } from "./MissionExecutionTypes";
 
 export interface MissionExecutionAuditEntry {
@@ -53,6 +57,7 @@ export interface MissionExecutionCoordinatorOptions {
   executors?: MissionExecutorRegistry;
   agentRuntime?: OperationalAgentRuntime;
   snapshotSource?: OperationalSnapshotSource;
+  releaseReadinessSnapshotSource?: ReleaseReadinessSnapshotSource;
   publishEvent?: (
     topic: EventTopic,
     payload: ReturnType<typeof buildMissionLifecyclePayload>,
@@ -69,6 +74,8 @@ const VALID_TRANSITIONS: Record<MissionExecutionStatus, MissionExecutionStatus[]
   completed: [],
   failed: [],
   cancelled: [],
+  interrupted: [],
+  recovery_required: [],
 };
 
 function sanitizeActorId(createdBy: string): string {
@@ -88,6 +95,7 @@ export class MissionExecutionCoordinator {
   private readonly executors: MissionExecutorRegistry;
   private readonly agentRuntime?: OperationalAgentRuntime;
   private readonly snapshotSource?: OperationalSnapshotSource;
+  private readonly releaseReadinessSnapshotSource?: ReleaseReadinessSnapshotSource;
   private readonly publishEvent?: MissionExecutionCoordinatorOptions["publishEvent"];
   private readonly appendAudit?: MissionExecutionCoordinatorOptions["appendAudit"];
   private readonly abortControllers = new Map<string, AbortController>();
@@ -98,8 +106,7 @@ export class MissionExecutionCoordinator {
     this.idempotency =
       options.idempotency ?? new MissionExecutionIdempotencyGuard(this.registry);
     this.persistence =
-      options.persistence ??
-      new CompositeMissionExecutionPersistence([new InMemoryMissionExecutionPersistence()]);
+      options.persistence ?? new InMemoryMissionExecutionPersistence();
     if (options.executors) {
       this.executors = options.executors;
     } else {
@@ -109,6 +116,7 @@ export class MissionExecutionCoordinator {
     }
     this.agentRuntime = options.agentRuntime ?? this.agentRuntime;
     this.snapshotSource = options.snapshotSource;
+    this.releaseReadinessSnapshotSource = options.releaseReadinessSnapshotSource;
     this.publishEvent = options.publishEvent;
     this.appendAudit = options.appendAudit;
   }
@@ -131,6 +139,8 @@ export class MissionExecutionCoordinator {
     requestId: string;
     createdBy: string;
     createdByRole: string;
+    createdByUserId?: string;
+    operatorProfileId?: string;
     missionId?: string;
     isRetry?: boolean;
     previousExecutionId?: string;
@@ -141,9 +151,41 @@ export class MissionExecutionCoordinator {
       requestId: input.requestId,
       createdBy: sanitizeActorId(input.createdBy),
       createdByRole: input.createdByRole,
+      createdByUserId: input.createdByUserId,
+      operatorProfileId: input.operatorProfileId,
       missionType: OPERATIONAL_DIAGNOSTIC_MISSION_TYPE,
       title: OPERATIONAL_DIAGNOSTIC_MISSION_TITLE,
       description: "Diagnóstico determinístico da plataforma — sem IA externa.",
+      missionId: input.missionId,
+      isRetry: input.isRetry,
+      previousExecutionId: input.previousExecutionId,
+    };
+  }
+
+  createReleaseReadinessRequest(input: {
+    executionId: string;
+    correlationId: string;
+    requestId: string;
+    createdBy: string;
+    createdByRole: string;
+    createdByUserId?: string;
+    operatorProfileId?: string;
+    missionId?: string;
+    isRetry?: boolean;
+    previousExecutionId?: string;
+  }): MissionExecutionRequest {
+    return {
+      executionId: input.executionId,
+      correlationId: input.correlationId,
+      requestId: input.requestId,
+      createdBy: sanitizeActorId(input.createdBy),
+      createdByRole: input.createdByRole,
+      createdByUserId: input.createdByUserId,
+      operatorProfileId: input.operatorProfileId,
+      missionType: RELEASE_READINESS_REVIEW_MISSION_TYPE,
+      title: RELEASE_READINESS_REVIEW_MISSION_TITLE,
+      description:
+        "Revisão determinística de readiness — recomendação read-only, sem aprovar produção.",
       missionId: input.missionId,
       isRetry: input.isRetry,
       previousExecutionId: input.previousExecutionId,
@@ -276,6 +318,7 @@ export class MissionExecutionCoordinator {
         signal: abortController.signal,
         instant: options?.instant,
         snapshotSource: this.snapshotSource,
+        releaseReadinessSnapshotSource: this.releaseReadinessSnapshotSource,
         onProgress: (stepId, progress, label) => {
           context.currentStep = stepId;
           context.progress = progress;
@@ -329,7 +372,7 @@ export class MissionExecutionCoordinator {
     if (
       !canPerformMissionExecution({
         role: actorRole as MissionOperatorRole,
-        missionType: OPERATIONAL_DIAGNOSTIC_MISSION_TYPE,
+        missionType: context.request.missionType,
         capability: "cancel",
       })
     ) {
@@ -359,6 +402,8 @@ export class MissionExecutionCoordinator {
       correlationId: request.correlationId,
       requestId: request.requestId,
       createdBy: request.createdBy,
+      createdByUserId: request.createdByUserId,
+      operatorProfileId: request.operatorProfileId,
       progress: 0,
       attempt: 1,
     };

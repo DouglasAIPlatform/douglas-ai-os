@@ -61,15 +61,25 @@ export type {
   AgentSessionMetrics,
   OperationalPlatformSnapshot,
   OperationalSnapshotSource,
+  ReleaseReadinessPlatformSnapshot,
+  ReleaseReadinessSnapshotSource,
+  ReleaseReadinessAgentReport,
+  ReleaseReadinessVerdict,
   AgentAssignmentDecision,
   AgentCapabilityMatchResult,
   OperationalAgentEventPublisher,
+  AgentExecutionSnapshotSources,
 } from "./operational";
 
 export {
   SYSTEM_DIAGNOSTICS_AGENT_ID,
   SYSTEM_DIAGNOSTICS_AGENT_MANIFEST,
   OPERATIONAL_DIAGNOSTIC_REQUIRED_CAPABILITIES,
+  RELEASE_READINESS_AGENT_ID,
+  RELEASE_READINESS_AGENT_MANIFEST,
+  RELEASE_READINESS_REVIEW_MISSION_TYPE,
+  RELEASE_READINESS_REQUIRED_CAPABILITIES,
+  RELEASE_READINESS_FORBIDDEN_ACTIONS,
   FORBIDDEN_OPERATIONAL_CAPABILITIES,
   validateAgentCapabilitiesSafe,
   assertAgentExecutionSafe,
@@ -80,6 +90,36 @@ export {
   AgentSessionMetricsStore,
   SystemDiagnosticsAgent,
   createSystemDiagnosticsAgent,
+  ReleaseReadinessAgent,
+  createReleaseReadinessAgent,
+  deriveReleaseReadinessVerdict,
   createDeterministicOperationalSnapshot,
   createEmptyOperationalSnapshot,
+  createDeterministicReleaseReadinessSnapshot,
+  createEmptyReleaseReadinessSnapshot,
 } from "./operational";
+
+export type {
+  AgentExecutionHistoryScope,
+  AgentExecutionOutcome,
+  AgentExecutionHistoryEntry,
+  AgentExecutionHistoryQuery,
+  AgentExecutionHistoryPage,
+  AgentExecutionMetrics,
+  AgentExecutionMetricsSnapshot,
+  AgentExecutionOutcomeCounts,
+  AgentExecutionHistoryRepository,
+  AgentExecutionRetentionPolicy,
+} from "./history";
+
+export {
+  resolveAgentExecutionOutcome,
+  computeDurationMs,
+  countByOutcome,
+  calculateAgentExecutionMetrics,
+  buildAgentExecutionMetricsSnapshot,
+  DEFAULT_AGENT_EXECUTION_RETENTION_POLICY,
+  resolvePageLimit,
+  resolvePageOffset,
+  truncateToRetentionLimit,
+} from "./history";
