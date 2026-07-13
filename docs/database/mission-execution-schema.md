@@ -77,3 +77,7 @@ Sem policies `USING (true)` ou `WITH CHECK (true)`.
 ## O que NÃO persistir
 
 Tokens, chaves, e-mail, payload completo, stack trace, secrets, URL Supabase completa.
+
+## Validação pós-migration (Sprint 5.54)
+
+Após apply manual, executar acceptance no staging via `MissionPersistenceRuntimeValidator`. Registros de teste usam prefixo `acceptance:` — ver [mission-persistence-acceptance-scenarios](../operations/mission-persistence-acceptance-scenarios.md).

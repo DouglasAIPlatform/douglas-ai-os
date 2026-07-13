@@ -6,6 +6,7 @@ import {
   type StagingReadinessCheckResult,
   type StagingReadinessReport,
 } from "./StagingReadinessReport.ts";
+import { resolveStagingReadinessDimensions } from "./StagingReadinessDimensions.ts";
 import { buildStagingConfigurationSnapshot } from "./StagingConfigurationSnapshot.ts";
 
 const STAGING_POLICY = {
@@ -19,6 +20,9 @@ export const STAGING_BOOTSTRAP_DOCS = [
   "docs/operations/staging-bootstrap.md",
   "docs/operations/staging-validation-checklist.md",
   "docs/operations/staging-production-environments.md",
+  "docs/operations/staging-project-bootstrap.md",
+  "docs/operations/staging-environment-variables.md",
+  "docs/operations/staging-manual-setup-checklist.md",
 ] as const;
 
 export const EXPECTED_STAGING_MIGRATIONS = [
@@ -267,9 +271,17 @@ export function runStagingReadinessCheck(
     blockers.push(item.message);
   }
 
+  const dimensions = resolveStagingReadinessDimensions({
+    snapshot,
+    checks,
+    codebasePrepared: staticIssues.length === 0,
+    envTemplatesPresent: fileContains(join(repoRoot, ".env.example"), "NEXT_PUBLIC_DOS_ENVIRONMENT"),
+  });
+
   return buildStagingReadinessReport({
     snapshot,
     checks,
+    dimensions,
     blockers,
     nextSteps: isStaging
       ? [

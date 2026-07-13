@@ -6,6 +6,8 @@ import {
   type StagingReadinessCheckResult,
   type StagingReadinessReport,
 } from "./StagingReadinessReport";
+import { resolveStagingReadinessDimensions } from "./StagingReadinessDimensions";
+import { evaluateStagingSafetyGate } from "./StagingSafetyGate";
 import {
   STAGING_READINESS_REQUIREMENTS,
   type StagingReadinessRequirementId,
@@ -24,6 +26,12 @@ export interface StagingRuntimeContext {
   lastAuditAccepted?: boolean;
   pendingQueueControlled?: boolean;
   auditIngestAuthRequired?: boolean;
+  edgeFunctionDeployed?: boolean;
+  remoteMissionPersistence?: boolean;
+  remoteMissionPersistenceKnown?: boolean;
+  persistenceFallbackActive?: boolean;
+  humanReviewApproved?: boolean;
+  missionPersistenceMode?: string;
 }
 
 export interface EvaluateStagingReadinessInput {
@@ -299,10 +307,39 @@ export function evaluateStagingReadiness(
     alerts.push("Fallback local de audit deve ser tratado como alerta em staging.");
   }
 
+  const safetyChecks = evaluateStagingSafetyGate({
+    effectiveEnvironment: config.name,
+    supabaseConfigured: snapshot.supabaseConfigured,
+    dosEnvironmentExplicit: config.declaredExplicitly,
+    mocksAllowed: profile.allowMocks,
+    mockRoleAllowed: profile.allowMockRoleChange,
+    missionPersistenceMode: runtime.missionPersistenceMode,
+    migrationsSyncKnown: runtime.migrationsSyncKnown,
+    edgeFunctionDeployed: runtime.edgeFunctionDeployed,
+    auditIngestAuthRequired: runtime.auditIngestAuthRequired,
+    activeProfile: runtime.hasActiveProfile,
+    realAuth: runtime.userAuthenticated,
+    acceptanceReportApproved: runtime.humanReviewApproved,
+  });
+
+  const dimensions = resolveStagingReadinessDimensions({
+    snapshot,
+    checks,
+    runtime,
+    codebasePrepared: true,
+    envTemplatesPresent: true,
+  });
+
+  if (dimensions.finalStatus !== "ready") {
+    nextSteps.unshift("Execute pnpm staging:bootstrap-plan para o roteiro manual completo.");
+  }
+
   return buildStagingReadinessReport({
     snapshot,
     checks,
+    dimensions,
     alerts,
     nextSteps,
+    safetyChecks,
   });
 }

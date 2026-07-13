@@ -14,6 +14,7 @@
 pnpm test
 pnpm validate
 pnpm staging:check
+pnpm staging:acceptance:check
 pnpm release:check
 ```
 
@@ -28,6 +29,26 @@ Checks bloqueantes incluem migration presente, RLS, adapter, fallback, recovery 
 | Production | `supabase_required` | Sem perda silenciosa |
 
 Config HQ: `apps/headquarters/features/mission-control/missionExecutionPersistenceConfig.ts`
+
+## Validação remota pós-migration (Sprint 5.54)
+
+1. Login staging com profile active (operator/admin/owner).
+2. Headquarters → Mission Execution → **Validação de persistência remota**.
+3. Confirmar **Executar validação segura**.
+4. Esperar status `passed` e evento `mission:persistence_remote_confirmed`.
+
+Detalhes: [remote-mission-persistence-validation](./remote-mission-persistence-validation.md) e [acceptance scenarios](./mission-persistence-acceptance-scenarios.md).
+
+## Acceptance reidratação (Sprint 5.55)
+
+Após validação remota (5.54):
+
+1. `pnpm staging:acceptance:check` — checks estáticos (`passed_with_runtime_checks_pending`)
+2. HQ staging → **Staging Persistence Acceptance** → Iniciar acceptance
+3. Recarregue HQ se checkpoint de reload aparecer → **Retomar após reload**
+4. Confirme cenários A–E `passed` e Production Safety Gate atualizado
+
+Detalhes: [staging-persistence-acceptance](./staging-persistence-acceptance.md), [mission-recovery-runbook](./mission-recovery-runbook.md).
 
 ## Fallback ativo
 

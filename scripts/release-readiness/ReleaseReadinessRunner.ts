@@ -52,6 +52,15 @@ import {
   checkStagingScriptAvailable,
 } from "./StagingEnvironmentChecks.ts";
 import {
+  checkStagingBootstrapDocsPack,
+  checkStagingBootstrapPlanScript,
+  checkStagingEnvLocalIgnored,
+  checkStagingEnvTemplatesPresent,
+  checkStagingManifestNoSecrets,
+  checkStagingTargetManifestPresent,
+  runStagingBootstrapPackTests,
+} from "./StagingBootstrapPackChecks.ts";
+import {
   checkMissionEventsTyped,
   checkMissionExecutionCoordinatorPresent,
   checkMissionExecutionDocsPresent,
@@ -79,6 +88,28 @@ import {
   checkSupabaseMissionPersistenceAdapterPresent,
   runMissionPersistenceTests,
 } from "./MissionPersistenceChecks.ts";
+import {
+  checkMissionPersistenceNoServiceRoleFrontend,
+  checkMissionPersistenceRemoteReadinessDocsPresent,
+  checkMissionPersistenceRemoteReportPresent,
+  checkMissionPersistenceRemoteValidationWidgetPresent,
+  checkMissionPersistenceRuntimeValidatorPresent,
+  checkMissionPersistenceTestDataPolicyPresent,
+  checkStagingRequiresSupabaseRequiredPersistence,
+  runMissionPersistenceRemoteReadinessTests,
+} from "./RemoteMissionPersistenceReadinessChecks.ts";
+import {
+  checkStagingAcceptanceScriptPresent,
+  checkStagingPersistenceAcceptanceDocsPresent,
+  checkStagingPersistenceAcceptanceScenariosPresent,
+  checkStagingPersistenceAcceptanceSuitePresent,
+  checkStagingPersistenceAcceptanceWidgetPresent,
+  checkStagingPersistenceMultiAgentIsolationPresent,
+  checkStagingPersistenceRecoveryValidationPresent,
+  checkStagingPersistenceReloadHandshakePresent,
+  checkStagingPersistenceSafetyGateChecksPresent,
+  runStagingPersistenceAcceptanceTests,
+} from "./StagingPersistenceAcceptanceChecks.ts";
 import { checkMissionTypeCatalogAligned, runMissionTypeCatalogDriftTests } from "./MissionTypeCatalogChecks.ts";
 import {
   checkAgentExecutionHistoryDocsPresent,
@@ -1201,6 +1232,13 @@ export function runReleaseReadiness(
   checks.push(checkStagingRequiresEdgeAudit(repoRoot));
   checks.push(checkStagingBootstrapDocsPresent(repoRoot));
   checks.push(checkStagingScriptAvailable(repoRoot));
+  checks.push(checkStagingTargetManifestPresent(repoRoot));
+  checks.push(checkStagingEnvTemplatesPresent(repoRoot));
+  checks.push(checkStagingEnvLocalIgnored(repoRoot));
+  checks.push(checkStagingBootstrapPlanScript(repoRoot));
+  checks.push(checkStagingManifestNoSecrets(repoRoot));
+  checks.push(checkStagingBootstrapDocsPack(repoRoot));
+  checks.push(runStagingBootstrapPackTests(repoRoot));
   checks.push(checkMissionExecutionCoordinatorPresent(repoRoot));
   checks.push(checkMissionIdempotencyGuardPresent(repoRoot));
   checks.push(checkMissionEventsTyped(repoRoot));
@@ -1225,6 +1263,24 @@ export function runReleaseReadiness(
   checks.push(checkMissionPersistenceEventsTyped(repoRoot));
   checks.push(runMissionPersistenceTests(repoRoot));
   checks.push(checkMissionPersistenceDocsPresent(repoRoot));
+  checks.push(checkMissionPersistenceRuntimeValidatorPresent(repoRoot));
+  checks.push(checkMissionPersistenceRemoteReportPresent(repoRoot));
+  checks.push(checkMissionPersistenceTestDataPolicyPresent(repoRoot));
+  checks.push(checkStagingRequiresSupabaseRequiredPersistence(repoRoot));
+  checks.push(checkMissionPersistenceNoServiceRoleFrontend(repoRoot));
+  checks.push(runMissionPersistenceRemoteReadinessTests(repoRoot));
+  checks.push(checkMissionPersistenceRemoteReadinessDocsPresent(repoRoot));
+  checks.push(checkMissionPersistenceRemoteValidationWidgetPresent(repoRoot));
+  checks.push(checkStagingPersistenceAcceptanceSuitePresent(repoRoot));
+  checks.push(checkStagingPersistenceAcceptanceScenariosPresent(repoRoot));
+  checks.push(checkStagingPersistenceReloadHandshakePresent(repoRoot));
+  checks.push(checkStagingPersistenceRecoveryValidationPresent(repoRoot));
+  checks.push(checkStagingPersistenceMultiAgentIsolationPresent(repoRoot));
+  checks.push(checkStagingAcceptanceScriptPresent(repoRoot));
+  checks.push(checkStagingPersistenceSafetyGateChecksPresent(repoRoot));
+  checks.push(runStagingPersistenceAcceptanceTests(repoRoot));
+  checks.push(checkStagingPersistenceAcceptanceDocsPresent(repoRoot));
+  checks.push(checkStagingPersistenceAcceptanceWidgetPresent(repoRoot));
   checks.push(checkAgentExecutionHistoryRepositoryPresent(repoRoot));
   checks.push(checkAgentExecutionMetricsCalculatorPresent(repoRoot));
   checks.push(checkAgentExecutionPaginationPresent(repoRoot));

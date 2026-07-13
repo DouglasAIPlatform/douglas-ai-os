@@ -23,7 +23,9 @@ Quando o ambiente efetivo é `development` (padrão local), é esperado `passed_
 - [ ] `auditSupabaseConfig.writeMode = edge_function`
 - [ ] `.env.example` documenta `NEXT_PUBLIC_DOS_ENVIRONMENT=staging`
 - [ ] Migrations esperadas presentes em `supabase/migrations/`
-- [ ] `pnpm staging:check` disponível
+- [ ] `pnpm staging:bootstrap-plan` disponível
+- [ ] `StagingTargetManifest` presente
+- [ ] `apps/headquarters/.env.staging.example` presente
 - [ ] `pnpm release:check` inclui checks de staging
 
 ## Variáveis (staging deploy)
@@ -77,6 +79,7 @@ Quando o ambiente efetivo é `development` (padrão local), é esperado `passed_
 ## Comandos
 
 ```bash
+pnpm staging:bootstrap-plan
 pnpm staging:check
 pnpm release:check
 pnpm rbac:drift-check

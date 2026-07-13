@@ -18,6 +18,13 @@ export const MISSION_PERSISTENCE_EVENT_TOPICS = [
   "mission:persistence_fallback",
   "mission:persistence_rehydrated",
   "mission:recovery_required",
+  "mission:persistence_validation_started",
+  "mission:persistence_validation_passed",
+  "mission:persistence_validation_failed",
+  "mission:persistence_remote_confirmed",
+  "mission:persistence_acceptance_started",
+  "mission:persistence_acceptance_passed",
+  "mission:persistence_acceptance_failed",
 ] as const;
 
 export type MissionPersistenceEventTopic =

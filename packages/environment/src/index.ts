@@ -172,3 +172,39 @@ export type {
   StagingRuntimeContext,
 } from "./staging-bootstrap/StagingReadinessEvaluator";
 export { evaluateStagingReadiness } from "./staging-bootstrap/StagingReadinessEvaluator";
+
+export type {
+  StagingTargetManifest,
+  StagingTargetStatus,
+} from "./staging-bootstrap/StagingTargetManifest";
+export {
+  STAGING_TARGET_MANIFEST,
+  STAGING_TARGET_STATUS_LABELS,
+  assertStagingTargetManifestSafe,
+} from "./staging-bootstrap/StagingTargetManifest";
+
+export type {
+  StagingBootstrapStep,
+  StagingBootstrapPlan,
+  StagingBootstrapReport,
+  StagingBootstrapEvidence,
+  StagingBootstrapStepStatus,
+} from "./staging-bootstrap/StagingBootstrapPlan";
+export {
+  STAGING_BOOTSTRAP_MANUAL_STEPS,
+  buildStagingBootstrapPlan,
+  formatStagingBootstrapPlan,
+  buildStagingBootstrapReport,
+} from "./staging-bootstrap/StagingBootstrapPlan";
+
+export type {
+  StagingReadinessDimensions,
+  StagingTriState,
+} from "./staging-bootstrap/StagingReadinessDimensions";
+export { resolveStagingReadinessDimensions } from "./staging-bootstrap/StagingReadinessDimensions";
+
+export type {
+  StagingSafetyCheck,
+  StagingSafetyGateInput,
+} from "./staging-bootstrap/StagingSafetyGate";
+export { evaluateStagingSafetyGate } from "./staging-bootstrap/StagingSafetyGate";

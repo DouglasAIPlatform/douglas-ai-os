@@ -27,13 +27,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AgentExecutionHistoryProvider } from "@/features/agents/AgentExecutionHistoryContext";
 import { useAuthOperatorBridge } from "@/features/platform-auth/useAuthOperatorBridge";
 import { OperationalAgentProvider } from "./OperationalAgentContext";
-import { MissionExecutionPersistenceProvider } from "./MissionExecutionPersistenceContext";
+import {
+  MissionExecutionPersistenceWithRemoteValidation,
+  MissionExecutionStagingAcceptanceBridge,
+} from "./MissionExecutionPersistenceWithRemoteValidation";
 import {
   buildMissionExecutionPersistenceConfig,
   missionExecutionSessionStorageKey,
 } from "./missionExecutionPersistenceConfig";
 import { useOperationalSnapshotSource } from "./useOperationalSnapshotSource";
 import { useReleaseReadinessSnapshotSource } from "./useReleaseReadinessSnapshotSource";
+import { useEnvironmentStatus } from "@/features/platform-environment/useEnvironmentStatus";
 
 interface MissionExecutionIntegrationProps {
   children: ReactNode;
@@ -99,6 +103,7 @@ export function MissionExecutionIntegration({ children }: MissionExecutionIntegr
   const { client, config } = useSupabase();
   const { authSession } = useAuthOperatorBridge();
   const snapshotSource = useOperationalSnapshotSource();
+  const { snapshot: envSnapshot } = useEnvironmentStatus();
   const [manager] = useState(() => new MissionManager());
   const [, setPersistenceReady] = useState(false);
 
@@ -110,9 +115,10 @@ export function MissionExecutionIntegration({ children }: MissionExecutionIntegr
           supabaseClient: client,
           isSupabaseConfigured: config.isConfigured,
           createdByUserId: authSession.user?.id,
+          effectiveEnvironment: envSnapshot.effectiveEnvironment,
         }),
       ),
-    [authSession.user?.id, client, config.isConfigured],
+    [authSession.user?.id, client, config.isConfigured, envSnapshot.effectiveEnvironment],
   );
 
   const sessionReader = useMemo(
@@ -297,13 +303,15 @@ export function MissionExecutionIntegration({ children }: MissionExecutionIntegr
 
   return (
     <OperationalAgentProvider agentRuntime={agentRuntime}>
-      <MissionExecutionPersistenceProvider persistence={persistence}>
+      <MissionExecutionPersistenceWithRemoteValidation persistence={persistence}>
         <AgentExecutionHistoryProvider repository={historyRepository}>
-          <MissionProvider manager={manager} coordinator={coordinator}>
-            {children}
-          </MissionProvider>
+          <MissionExecutionStagingAcceptanceBridge>
+            <MissionProvider manager={manager} coordinator={coordinator}>
+              {children}
+            </MissionProvider>
+          </MissionExecutionStagingAcceptanceBridge>
         </AgentExecutionHistoryProvider>
-      </MissionExecutionPersistenceProvider>
+      </MissionExecutionPersistenceWithRemoteValidation>
     </OperationalAgentProvider>
   );
 }

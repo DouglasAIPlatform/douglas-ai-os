@@ -49,6 +49,16 @@ export interface ProductionSafetyAuditSnapshot extends StagingValidationAuditSna
   ingestLastOutcome?: string | null;
 }
 
+export interface ProductionSafetyMissionAcceptanceSnapshot {
+  remotePersistenceValidated: boolean | null;
+  rehydrationValidated: boolean | null;
+  interruptedRecoveryValidated: boolean | null;
+  diagnosticsHistoryValidated: boolean | null;
+  releaseHistoryValidated: boolean | null;
+  multiAgentIsolationValidated: boolean | null;
+  fallbackInactiveInStaging: boolean | null;
+}
+
 export interface RunProductionSafetyGateInput {
   config: SupabaseConfig;
   client: SupabaseClient | null;
@@ -59,6 +69,8 @@ export interface RunProductionSafetyGateInput {
   edge: StagingValidationEdgeSnapshot;
   environment: SupabaseEnvironment;
   platform?: EnvironmentGateSnapshot;
+  /** Sprint 5.55 — resultado da acceptance staging (null = pendente). */
+  missionAcceptance?: ProductionSafetyMissionAcceptanceSnapshot;
 }
 
 function check(
@@ -501,6 +513,67 @@ function appendPlatformEnvironmentChecks(
   );
 }
 
+const MISSION_ACCEPTANCE_DOC = "docs/operations/staging-persistence-acceptance.md";
+
+const MISSION_ACCEPTANCE_CHECK_KEYS: Array<{
+  id: ProductionSafetyCheckId;
+  key: keyof ProductionSafetyMissionAcceptanceSnapshot;
+}> = [
+  { id: "mission_persistence_remote_validated", key: "remotePersistenceValidated" },
+  { id: "mission_rehydration_validated", key: "rehydrationValidated" },
+  { id: "mission_interrupted_recovery_validated", key: "interruptedRecoveryValidated" },
+  { id: "diagnostics_agent_history_validated", key: "diagnosticsHistoryValidated" },
+  { id: "release_agent_history_validated", key: "releaseHistoryValidated" },
+  { id: "multi_agent_metrics_isolation_validated", key: "multiAgentIsolationValidated" },
+  { id: "mission_fallback_inactive_staging", key: "fallbackInactiveInStaging" },
+];
+
+function appendMissionPersistenceAcceptanceChecks(
+  checks: ProductionSafetyCheck[],
+  platform: EnvironmentGateSnapshot | undefined,
+  snapshot?: ProductionSafetyMissionAcceptanceSnapshot,
+): void {
+  const isStaging = platform?.name === "staging";
+  for (const item of MISSION_ACCEPTANCE_CHECK_KEYS) {
+    if (!isStaging) {
+      checks.push(
+        check(
+          item.id,
+          "skip",
+          "Acceptance staging — aplicável somente em staging.",
+          { docPath: MISSION_ACCEPTANCE_DOC },
+        ),
+      );
+      continue;
+    }
+
+    const value = snapshot?.[item.key] ?? null;
+    if (value === null) {
+      checks.push(
+        check(
+          item.id,
+          "warn",
+          "Pendente — execute Staging Persistence Acceptance no HQ staging.",
+          { docPath: MISSION_ACCEPTANCE_DOC },
+        ),
+      );
+    } else if (value) {
+      checks.push(
+        check(item.id, "pass", "Validado pela acceptance staging.", {
+          docPath: MISSION_ACCEPTANCE_DOC,
+        }),
+      );
+    } else {
+      checks.push(
+        check(item.id, "fail", "Falhou ou bloqueado na acceptance staging.", {
+          blocking: true,
+          docPath: MISSION_ACCEPTANCE_DOC,
+        }),
+      );
+    }
+  }
+}
+
 export async function runProductionSafetyGate(
   input: RunProductionSafetyGateInput,
 ): Promise<ProductionSafetyReport> {
@@ -552,6 +625,7 @@ export async function runProductionSafetyGate(
     );
 
     appendPlatformEnvironmentChecks(checks, platform, auth, audit, edge);
+    appendMissionPersistenceAcceptanceChecks(checks, platform, input.missionAcceptance);
 
     const status = resolveProductionSafetyStatus(checks, config);
     const { alertChecks } = partitionProductionSafetyChecks(checks);
@@ -1066,6 +1140,7 @@ export async function runProductionSafetyGate(
   }
 
   appendPlatformEnvironmentChecks(checks, platform, auth, audit, edge);
+  appendMissionPersistenceAcceptanceChecks(checks, platform, input.missionAcceptance);
 
   const status = resolveProductionSafetyStatus(checks, config);
   const { alertChecks } = partitionProductionSafetyChecks(checks);

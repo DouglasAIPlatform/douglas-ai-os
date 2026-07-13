@@ -4,12 +4,22 @@ import type {
   MissionExecutionPersistenceMode,
 } from "@douglas/missions";
 
-/** Configuração de persistência de execução de missões (Headquarters). */
+/** Default development — fallback session permitido. */
 export const missionExecutionPersistenceMode: MissionExecutionPersistenceMode =
   "supabase_preferred";
 
 export const missionExecutionSessionStorageKey = "douglas:mission-execution";
 export const missionExecutionPendingQueueKey = "douglas:mission-execution-pending";
+
+/** Staging/production exigem Supabase — sem perda silenciosa. */
+export function resolveMissionExecutionPersistenceMode(
+  effectiveEnvironment: string | undefined,
+): MissionExecutionPersistenceMode {
+  if (effectiveEnvironment === "staging" || effectiveEnvironment === "production") {
+    return "supabase_required";
+  }
+  return missionExecutionPersistenceMode;
+}
 
 export function buildMissionExecutionPersistenceConfig(input: {
   supabaseClient: SupabaseClient | null;
@@ -17,9 +27,14 @@ export function buildMissionExecutionPersistenceConfig(input: {
   createdByUserId?: string;
   operatorProfileId?: string;
   mode?: MissionExecutionPersistenceMode;
+  effectiveEnvironment?: string;
 }): CompositeMissionExecutionPersistenceConfig {
+  const resolvedMode =
+    input.mode ??
+    resolveMissionExecutionPersistenceMode(input.effectiveEnvironment);
+
   return {
-    mode: input.mode ?? missionExecutionPersistenceMode,
+    mode: resolvedMode,
     isSupabaseConfigured: input.isSupabaseConfigured,
     sessionStorageKey: missionExecutionSessionStorageKey,
     pendingQueueKey: missionExecutionPendingQueueKey,

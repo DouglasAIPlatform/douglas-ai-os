@@ -37,6 +37,17 @@ Development usa `supabase_preferred` por padrão no Headquarters.
 - `mission:persistence_fallback`
 - `mission:persistence_rehydrated`
 - `mission:recovery_required`
+- `mission:persistence_validation_started` / `_passed` / `_failed` (Sprint 5.54)
+- `mission:persistence_remote_confirmed` (Sprint 5.54)
+- `mission:persistence_acceptance_started` / `_passed` / `_failed` (Sprint 5.55)
+
+## Validação remota (Sprint 5.54)
+
+Após migration manual no staging, use `MissionPersistenceRuntimeValidator` via widget HQ — ver [remote-mission-persistence-validation](../operations/remote-mission-persistence-validation.md).
+
+## Acceptance reidratação (Sprint 5.55)
+
+`StagingPersistenceAcceptanceSuite` prova o ciclo execute → persist → reload → rehydrate → metrics — ver [staging-persistence-acceptance](../operations/staging-persistence-acceptance.md) e [persistence-rehydration-lifecycle](./persistence-rehydration-lifecycle.md).
 
 Eventos de persistência não geram audit lifecycle (flag `audited: true` no payload).
 

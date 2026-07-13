@@ -69,14 +69,16 @@ Secrets server-side (Edge Functions, CI):
 
 Deploy continua **manual** nesta fase — a plataforma valida, não publica.
 
-## Staging bootstrap (Sprint 5.47)
+## Staging bootstrap (Sprint 5.47 + 5.53)
 
 Fundação operacional para staging real:
 
+- **Manifest:** `StagingTargetManifest` — flags não sensíveis
+- **Plano manual:** `pnpm staging:bootstrap-plan` (read-only)
 - **Perfil:** `StagingEnvironmentProfile` em `@douglas/environment`
 - **Check read-only:** `pnpm staging:check`
-- **HQ widget:** `StagingReadinessWidget` — exibe bootstrap sem URLs/keys
-- **Docs:** [staging-bootstrap.md](./staging-bootstrap.md), [staging-validation-checklist.md](./staging-validation-checklist.md)
+- **HQ widget:** `StagingReadinessWidget` — dimensões + safety gate, sem URLs/keys
+- **Docs:** [staging-project-bootstrap.md](./staging-project-bootstrap.md), [staging-bootstrap.md](./staging-bootstrap.md)
 
 Em development local, o widget exibe *"Staging ainda não configurado"* — comportamento esperado, não erro.
 

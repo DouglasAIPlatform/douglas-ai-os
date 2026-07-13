@@ -1,7 +1,9 @@
 # Staging Bootstrap — Douglas AI Platform
 
-> Sprint 5.47  
+> Sprint 5.47 + **5.53 Staging Project Bootstrap Pack**  
 > Escopo: fundação operacional para ambiente staging real e separado.
+
+Ver também: [staging-project-bootstrap.md](./staging-project-bootstrap.md) — manifest, plano manual e dimensões de readiness.
 
 ## Objetivo
 
@@ -90,7 +92,10 @@ supabase secrets set AUDIT_INGEST_AUTH_MODE=required --project-ref <staging-ref>
 ## Comandos
 
 ```bash
+```bash
+pnpm staging:bootstrap-plan   # roteiro manual (Sprint 5.53)
 pnpm staging:check    # read-only — configuração estática + runtime pendente
+```
 pnpm release:check    # inclui checks de staging bootstrap
 ```
 

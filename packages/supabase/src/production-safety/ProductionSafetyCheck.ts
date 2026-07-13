@@ -28,7 +28,14 @@ export type ProductionSafetyCheckId =
   | "platform_environment_no_critical_mismatch"
   | "platform_environment_production_explicit"
   | "platform_environment_preview_not_production"
-  | "platform_environment_staging_production_policies";
+  | "platform_environment_staging_production_policies"
+  | "mission_persistence_remote_validated"
+  | "mission_rehydration_validated"
+  | "mission_interrupted_recovery_validated"
+  | "diagnostics_agent_history_validated"
+  | "release_agent_history_validated"
+  | "multi_agent_metrics_isolation_validated"
+  | "mission_fallback_inactive_staging";
 
 export interface ProductionSafetyCheck {
   id: ProductionSafetyCheckId;
@@ -69,6 +76,13 @@ export const PRODUCTION_SAFETY_CHECK_LABELS: Record<ProductionSafetyCheckId, str
   platform_environment_production_explicit: "Production declarado explicitamente",
   platform_environment_preview_not_production: "Preview não interpretado como production",
   platform_environment_staging_production_policies: "Políticas staging/production corretas",
+  mission_persistence_remote_validated: "Persistência remota de missões validada",
+  mission_rehydration_validated: "Reidratação validada em staging",
+  mission_interrupted_recovery_validated: "Recovery interrupted validado",
+  diagnostics_agent_history_validated: "Histórico diagnostics agent validado",
+  release_agent_history_validated: "Histórico release agent validado",
+  multi_agent_metrics_isolation_validated: "Isolamento multi-agent validado",
+  mission_fallback_inactive_staging: "Fallback inativo em staging",
 };
 
 /** Mínimo de tentativas para avaliar taxa de falha (Sprint 5.36). */

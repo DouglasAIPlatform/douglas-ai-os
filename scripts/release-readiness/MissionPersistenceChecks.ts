@@ -179,6 +179,13 @@ export function checkMissionPersistenceEventsTyped(repoRoot: string): ReleaseRea
     "mission:persistence_fallback",
     "mission:persistence_rehydrated",
     "mission:recovery_required",
+    "mission:persistence_validation_started",
+    "mission:persistence_validation_passed",
+    "mission:persistence_validation_failed",
+    "mission:persistence_remote_confirmed",
+    "mission:persistence_acceptance_started",
+    "mission:persistence_acceptance_passed",
+    "mission:persistence_acceptance_failed",
   ];
   const missing = required.filter((topic) => !content.includes(`"${topic}"`));
   if (missing.length) {

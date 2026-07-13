@@ -7,6 +7,9 @@ import {
 import { OPERATOR_ROLE_LABELS } from "@douglas/security";
 import { useState } from "react";
 import { useMissionExecution } from "@/features/mission-control/useMissionExecution";
+import { useMissionPersistenceRemoteValidationFromContext, useStagingPersistenceAcceptanceFromContext } from "@/features/mission-control/MissionExecutionPersistenceContext";
+import { resolveMissionExecutionPersistenceMode } from "@/features/mission-control/missionExecutionPersistenceConfig";
+import { useEnvironmentStatus } from "@/features/platform-environment/useEnvironmentStatus";
 import type { WidgetStateProps } from "./shared/WidgetFrame";
 import { WidgetFrame } from "./shared/WidgetFrame";
 
@@ -63,8 +66,16 @@ export function MissionExecutionWidget({
     rehydratedExecution,
   } = useMissionExecution();
 
+  const remoteValidation = useMissionPersistenceRemoteValidationFromContext();
+  const stagingAcceptance = useStagingPersistenceAcceptanceFromContext();
+  const { snapshot: envSnapshot } = useEnvironmentStatus();
+  const isStaging = envSnapshot.effectiveEnvironment === "staging";
+
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmExecute, setConfirmExecute] = useState(false);
+  const [confirmRemoteValidation, setConfirmRemoteValidation] = useState(false);
+  const [confirmAcceptanceStart, setConfirmAcceptanceStart] = useState(false);
+  const [confirmAcceptanceReset, setConfirmAcceptanceReset] = useState(false);
 
   const isLoading = externalLoading ?? isRunning;
   const displayError = externalError ?? error;
@@ -342,6 +353,223 @@ export function MissionExecutionWidget({
             >
               Retry sync
             </button>
+          ) : null}
+        </div>
+
+        <div className="rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border-subtle)] bg-[var(--ds-color-surface-muted)] p-[var(--ds-space-3)]">
+          <p className="text-[length:var(--ds-font-size-xs)] font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)]">
+            Validação de persistência remota
+          </p>
+          <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+            Modo configurado: {resolveMissionExecutionPersistenceMode(envSnapshot.effectiveEnvironment)}
+            {" · "}
+            Modo efetivo: {persistenceStatus?.mode ?? "—"}
+            {" · "}
+            Adapter: {persistenceStatus?.activeAdapter === "supabase" ? "Supabase" : persistenceStatus?.activeAdapter === "session" ? "sessionStorage" : persistenceStatus?.activeAdapter ?? "—"}
+          </p>
+          <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+            Health: {persistenceStatus?.supabaseTableReady === true ? "tabelas OK" : persistenceStatus?.supabaseTableReady === false ? "tabelas indisponíveis" : "desconhecido"}
+            {persistenceStatus?.lastHydratedAt
+              ? ` · Reidratado ${formatTime(persistenceStatus.lastHydratedAt)}`
+              : ""}
+            {persistenceStatus?.lastSyncAt
+              ? ` · Sync ${formatTime(persistenceStatus.lastSyncAt)}`
+              : ""}
+          </p>
+          {remoteValidation?.fallbackEvaluation.fallbackActive ? (
+            <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-status-warning)]">
+              Fallback sessionStorage ativo
+              {remoteValidation.fallbackEvaluation.stagingBlocker ? " — blocker em staging" : ""}
+            </p>
+          ) : null}
+          {(persistenceStatus?.pendingSyncCount ?? 0) > 0 ? (
+            <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-status-warning)]">
+              Pending queue: {persistenceStatus?.pendingSyncCount} item(ns)
+            </p>
+          ) : null}
+          <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+            Checks remotos: {remoteValidation?.report.status ?? "unknown"}
+            {remoteValidation?.remoteConfirmed ? " · remoto confirmado" : ""}
+          </p>
+          {!isStaging ? (
+            <p className="mt-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+              Validação remota disponível apenas em staging (development usa fallback permitido).
+            </p>
+          ) : null}
+          {remoteValidation && isStaging ? (
+            <div className="mt-[var(--ds-space-2)] flex flex-wrap gap-[var(--ds-space-2)]">
+              {!confirmRemoteValidation ? (
+                <button
+                  type="button"
+                  disabled={!remoteValidation.eligibility.allowed || remoteValidation.running}
+                  onClick={() => setConfirmRemoteValidation(true)}
+                  className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] px-[var(--ds-space-2)] py-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] disabled:opacity-50"
+                >
+                  Executar validação segura
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={remoteValidation.running}
+                    onClick={() => {
+                      void remoteValidation.runValidation();
+                      setConfirmRemoteValidation(false);
+                    }}
+                    className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-status-warning)] px-[var(--ds-space-2)] py-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)]"
+                  >
+                    Confirmar validação
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmRemoteValidation(false)}
+                    className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] px-[var(--ds-space-2)] py-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)]"
+                  >
+                    Cancelar
+                  </button>
+                </>
+              )}
+            </div>
+          ) : null}
+          {!remoteValidation?.eligibility.allowed && isStaging ? (
+            <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+              {remoteValidation?.eligibility.reason}
+            </p>
+          ) : null}
+          {remoteValidation?.running ? (
+            <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+              Validação em andamento…
+            </p>
+          ) : null}
+        </div>
+
+        <div className="rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border-subtle)] bg-[var(--ds-color-surface-muted)] p-[var(--ds-space-3)]">
+          <p className="text-[length:var(--ds-font-size-xs)] font-[var(--ds-font-weight-medium)] text-[var(--ds-color-text-primary)]">
+            Staging Persistence Acceptance
+          </p>
+          <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+            Ambiente: {envSnapshot.effectiveEnvironment}
+            {" · "}
+            Persistência: {persistenceStatus?.activeAdapter === "supabase" ? "Supabase" : persistenceStatus?.activeAdapter ?? "—"}
+            {" · "}
+            Status: {stagingAcceptance?.report.status ?? "not_run"}
+          </p>
+          {!isStaging ? (
+            <p className="mt-[var(--ds-space-2)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+              Acceptance staging habilitada apenas em staging (development mantém fallback local).
+            </p>
+          ) : null}
+          {isStaging && stagingAcceptance ? (
+            <>
+              {!stagingAcceptance.eligibility.allowed ? (
+                <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                  {stagingAcceptance.eligibility.reason}
+                </p>
+              ) : null}
+              {stagingAcceptance.checkpoint ? (
+                <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-status-warning)]">
+                  Reload checkpoint: {stagingAcceptance.checkpoint.summary}
+                </p>
+              ) : null}
+              {stagingAcceptance.report.blockers.length > 0 ? (
+                <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-status-error)]">
+                  Blockers: {stagingAcceptance.report.blockers.join(" · ")}
+                </p>
+              ) : null}
+              {stagingAcceptance.report.warnings.length > 0 ? (
+                <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-status-warning)]">
+                  Warnings: {stagingAcceptance.report.warnings.join(" · ")}
+                </p>
+              ) : null}
+              <ul className="mt-[var(--ds-space-2)] space-y-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                {stagingAcceptance.report.scenarios.map((scenario) => (
+                  <li key={scenario.id}>
+                    {scenario.label}: {scenario.status}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-[var(--ds-space-2)] flex flex-wrap gap-[var(--ds-space-2)]">
+                {!confirmAcceptanceStart ? (
+                  <button
+                    type="button"
+                    disabled={!stagingAcceptance.eligibility.allowed || stagingAcceptance.running}
+                    onClick={() => setConfirmAcceptanceStart(true)}
+                    className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] px-[var(--ds-space-2)] py-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] disabled:opacity-50"
+                  >
+                    Iniciar acceptance
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      disabled={stagingAcceptance.running}
+                      onClick={() => {
+                        void stagingAcceptance.startAcceptance();
+                        setConfirmAcceptanceStart(false);
+                      }}
+                      className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-status-warning)] px-[var(--ds-space-2)] py-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)]"
+                    >
+                      Confirmar início
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAcceptanceStart(false)}
+                      className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] px-[var(--ds-space-2)] py-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)]"
+                    >
+                      Cancelar
+                    </button>
+                  </>
+                )}
+                {stagingAcceptance.checkpoint?.awaitingReload ? (
+                  <button
+                    type="button"
+                    disabled={stagingAcceptance.running}
+                    onClick={() => void stagingAcceptance.resumeAfterReload()}
+                    className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] px-[var(--ds-space-2)] py-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)]"
+                  >
+                    Retomar após reload
+                  </button>
+                ) : null}
+                {!confirmAcceptanceReset ? (
+                  <button
+                    type="button"
+                    disabled={stagingAcceptance.running}
+                    onClick={() => setConfirmAcceptanceReset(true)}
+                    className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] px-[var(--ds-space-2)] py-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)]"
+                  >
+                    Reiniciar acceptance
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        stagingAcceptance.resetAcceptance();
+                        setConfirmAcceptanceReset(false);
+                      }}
+                      className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-status-warning)] px-[var(--ds-space-2)] py-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)]"
+                    >
+                      Confirmar reinício
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAcceptanceReset(false)}
+                      className="rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border-subtle)] px-[var(--ds-space-2)] py-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)]"
+                    >
+                      Cancelar
+                    </button>
+                  </>
+                )}
+              </div>
+              {stagingAcceptance.running ? (
+                <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                  Acceptance em andamento…
+                </p>
+              ) : null}
+              <p className="mt-[var(--ds-space-1)] text-[length:var(--ds-font-size-xs)] text-[var(--ds-color-text-muted)]">
+                {stagingAcceptance.report.summary}
+              </p>
+            </>
           ) : null}
         </div>
 

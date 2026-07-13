@@ -17,6 +17,7 @@ import {
   useSupabase,
   type ProductionSafetyReport,
 } from "@douglas/supabase";
+import { readStagingAcceptanceSafetySnapshot } from "@douglas/missions";
 import { useCallback, useEffect, useState } from "react";
 import { useAuthOperatorBridge } from "@/features/platform-auth/useAuthOperatorBridge";
 import { auditSupabaseConfig } from "@/features/platform-audit/config";
@@ -45,6 +46,8 @@ export function useProductionSafetyGate() {
         auditWriteMode: auditSupabaseConfig.writeMode ?? null,
       });
       const platform = toEnvironmentGateSnapshot(envValidation);
+
+      const acceptanceSnapshot = readStagingAcceptanceSafetySnapshot();
 
       const nextReport = await runProductionSafetyGate({
         config,
@@ -89,6 +92,7 @@ export function useProductionSafetyGate() {
             auditSupabaseConfig.edgeFunctionName ?? DEFAULT_AUDIT_EDGE_FUNCTION_NAME,
           writeMode: auditSupabaseConfig.writeMode ?? DEFAULT_SUPABASE_AUDIT_WRITE_MODE,
         },
+        missionAcceptance: acceptanceSnapshot,
       });
       setReport(nextReport);
       void refreshHealthCheck();

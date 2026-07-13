@@ -100,3 +100,37 @@ export {
   buildMissionAuditEntry,
   MISSION_LIFECYCLE_AUDIT_TOPICS,
 } from "./MissionExecutionAuditPolicy";
+
+export {
+  MissionPersistenceRuntimeValidator,
+  createMissionPersistenceRuntimeValidator,
+  evaluateMissionPersistenceFallback,
+  reviewMissionPersistenceMigration,
+  buildMissionPersistenceRemoteReport,
+  buildInitialRemoteChecks,
+  MISSION_PERSISTENCE_TEST_DATA_POLICY,
+  type MissionPersistenceRemoteReport,
+  type MissionPersistenceRemoteCheck,
+  type MissionPersistenceRuntimeValidatorEligibility,
+  type MissionPersistenceFallbackEvaluation,
+} from "./persistence/remote";
+
+export {
+  StagingPersistenceAcceptanceSuite,
+  createStagingPersistenceAcceptanceSuite,
+  buildInitialAcceptanceScenarios,
+  buildMissionExecutionRecoveryPresentation,
+  formatMissionExecutionRecoveryPresentation,
+  validateRehydratedAgentMetrics,
+  validateMultiAgentMetricsIsolation,
+  assertCompletedExecutionDoesNotRestartAgent,
+  loadAcceptanceContinuationState,
+  clearAcceptanceContinuationState,
+  readStagingAcceptanceSafetySnapshot,
+  STAGING_PERSISTENCE_ACCEPTANCE_SCENARIO_DEFS,
+  type StagingPersistenceAcceptanceReport,
+  type StagingPersistenceAcceptanceEligibility,
+  type AcceptanceReloadCheckpoint,
+  type StagingAcceptanceSafetySnapshot,
+  type MissionExecutionRecoveryPresentation,
+} from "./persistence/acceptance";

@@ -217,6 +217,13 @@ export interface DouglasEventMap {
   "mission:persistence_fallback": MissionPersistenceEventPayload;
   "mission:persistence_rehydrated": MissionPersistenceEventPayload;
   "mission:recovery_required": MissionPersistenceEventPayload;
+  "mission:persistence_validation_started": MissionPersistenceEventPayload;
+  "mission:persistence_validation_passed": MissionPersistenceEventPayload;
+  "mission:persistence_validation_failed": MissionPersistenceEventPayload;
+  "mission:persistence_remote_confirmed": MissionPersistenceEventPayload;
+  "mission:persistence_acceptance_started": MissionPersistenceEventPayload;
+  "mission:persistence_acceptance_passed": MissionPersistenceEventPayload;
+  "mission:persistence_acceptance_failed": MissionPersistenceEventPayload;
   "agent:registered": AgentOperationalEventPayload;
   "agent:assigned": AgentOperationalEventPayload;
   "agent:execution_started": AgentOperationalEventPayload;
@@ -286,6 +293,13 @@ export const EVENT_CATEGORIES: Record<EventCategory, EventTopic[]> = {
     "mission:persistence_fallback",
     "mission:persistence_rehydrated",
     "mission:recovery_required",
+    "mission:persistence_validation_started",
+    "mission:persistence_validation_passed",
+    "mission:persistence_validation_failed",
+    "mission:persistence_remote_confirmed",
+    "mission:persistence_acceptance_started",
+    "mission:persistence_acceptance_passed",
+    "mission:persistence_acceptance_failed",
   ],
   agents: [
     "agent:registered",
@@ -351,6 +365,13 @@ export const TOPIC_CATEGORY: Record<EventTopic, EventCategory> = {
   "mission:persistence_fallback": "missions",
   "mission:persistence_rehydrated": "missions",
   "mission:recovery_required": "missions",
+  "mission:persistence_validation_started": "missions",
+  "mission:persistence_validation_passed": "missions",
+  "mission:persistence_validation_failed": "missions",
+  "mission:persistence_remote_confirmed": "missions",
+  "mission:persistence_acceptance_started": "missions",
+  "mission:persistence_acceptance_passed": "missions",
+  "mission:persistence_acceptance_failed": "missions",
   "agent:registered": "agents",
   "agent:assigned": "agents",
   "agent:execution_started": "agents",

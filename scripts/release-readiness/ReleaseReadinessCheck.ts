@@ -47,6 +47,13 @@ export type ReleaseReadinessCheckId =
   | "staging_requires_edge_audit"
   | "staging_bootstrap_docs_present"
   | "staging_check_script_available"
+  | "staging_target_manifest_present"
+  | "staging_env_templates_present"
+  | "staging_env_local_ignored"
+  | "staging_bootstrap_plan_script"
+  | "staging_manifest_no_secrets"
+  | "staging_bootstrap_docs_pack"
+  | "staging_bootstrap_pack_tests"
   | "mission_execution_coordinator_present"
   | "mission_idempotency_guard_present"
   | "mission_events_typed"
@@ -85,7 +92,25 @@ export type ReleaseReadinessCheckId =
   | "release_readiness_agent_tests_passing"
   | "release_readiness_agent_docs_present"
   | "mission_type_catalog_aligned"
-  | "mission_type_catalog_tests_passing";
+  | "mission_type_catalog_tests_passing"
+  | "mission_persistence_runtime_validator_present"
+  | "mission_persistence_remote_report_present"
+  | "mission_persistence_test_data_policy_present"
+  | "staging_requires_supabase_required_persistence"
+  | "mission_persistence_no_service_role_frontend"
+  | "mission_persistence_remote_readiness_tests_passing"
+  | "mission_persistence_remote_readiness_docs_present"
+  | "mission_persistence_remote_validation_widget_present"
+  | "staging_persistence_acceptance_suite_present"
+  | "staging_persistence_acceptance_scenarios_present"
+  | "staging_persistence_reload_handshake_present"
+  | "staging_persistence_recovery_validation_present"
+  | "staging_persistence_multi_agent_isolation_present"
+  | "staging_acceptance_check_script_present"
+  | "staging_persistence_safety_gate_checks_present"
+  | "staging_persistence_acceptance_tests_passing"
+  | "staging_persistence_acceptance_docs_present"
+  | "staging_persistence_acceptance_widget_present";
 
 export interface ReleaseReadinessCheck {
   id: ReleaseReadinessCheckId;
@@ -144,6 +169,13 @@ export const RELEASE_READINESS_CHECK_LABELS: Record<ReleaseReadinessCheckId, str
   staging_requires_edge_audit: "Staging exige audit Edge Function",
   staging_bootstrap_docs_present: "Docs staging bootstrap presentes",
   staging_check_script_available: "Script staging:check disponível",
+  staging_target_manifest_present: "StagingTargetManifest presente",
+  staging_env_templates_present: "Templates de env staging seguros",
+  staging_env_local_ignored: "Arquivos .env locais ignorados",
+  staging_bootstrap_plan_script: "Script staging:bootstrap-plan disponível",
+  staging_manifest_no_secrets: "Manifest staging sem secrets",
+  staging_bootstrap_docs_pack: "Docs staging bootstrap pack presentes",
+  staging_bootstrap_pack_tests: "Testes staging bootstrap pack passando",
   mission_execution_coordinator_present: "MissionExecutionCoordinator presente",
   mission_idempotency_guard_present: "Idempotency guard de missões presente",
   mission_events_typed: "Eventos mission:* tipados",
@@ -183,6 +215,24 @@ export const RELEASE_READINESS_CHECK_LABELS: Record<ReleaseReadinessCheckId, str
   release_readiness_agent_docs_present: "Docs Release Readiness Agent presentes",
   mission_type_catalog_aligned: "Catálogo mission types alinhado (app, SQL, executor, policy)",
   mission_type_catalog_tests_passing: "Testes mission type catalog drift passando",
+  mission_persistence_runtime_validator_present: "Runtime validator mission persistence presente",
+  mission_persistence_remote_report_present: "Remote report mission persistence presente",
+  mission_persistence_test_data_policy_present: "Test data policy mission persistence presente",
+  staging_requires_supabase_required_persistence: "Staging exige supabase_required",
+  mission_persistence_no_service_role_frontend: "Sem service_role no frontend de persistência",
+  mission_persistence_remote_readiness_tests_passing: "Testes remote mission persistence readiness",
+  mission_persistence_remote_readiness_docs_present: "Docs remote mission persistence presentes",
+  mission_persistence_remote_validation_widget_present: "Widget validação remota presente",
+  staging_persistence_acceptance_suite_present: "Acceptance suite presente",
+  staging_persistence_acceptance_scenarios_present: "Cinco cenários acceptance presentes",
+  staging_persistence_reload_handshake_present: "Reload handshake presente",
+  staging_persistence_recovery_validation_present: "Recovery validation presente",
+  staging_persistence_multi_agent_isolation_present: "Multi-agent isolation presente",
+  staging_acceptance_check_script_present: "Script staging:acceptance:check presente",
+  staging_persistence_safety_gate_checks_present: "Safety gate checks acceptance presentes",
+  staging_persistence_acceptance_tests_passing: "Testes acceptance passando",
+  staging_persistence_acceptance_docs_present: "Docs acceptance presentes",
+  staging_persistence_acceptance_widget_present: "Widget acceptance presente",
 };
 
 /** Migrations mínimas esperadas para release (ordem lexicográfica). */
